@@ -262,10 +262,3 @@ pnpm -r type-check
 | `GET` | `/sessions/:id` | Cookie | Full session detail |
 | `DELETE` | `/sessions/:id` | Cookie | Delete session |
 | `GET` | `/health` | Public | System health |
-
----
-
-## 📄 License
-
-MIT © 2024 StudyTutor Contributors
-# Student_rag

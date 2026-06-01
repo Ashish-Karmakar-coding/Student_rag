@@ -1,0 +1,22 @@
+{
+  "name": "adaptive-study-tutor",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Adaptive Study Tutor — full-stack TypeScript AI tutor monorepo",
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm --filter \"./packages/*\" build && pnpm --filter \"./apps/*\" build",
+    "lint": "pnpm --recursive lint",
+    "type-check": "pnpm --recursive type-check",
+    "test": "pnpm --recursive test",
+    "clean": "pnpm --recursive exec rm -rf dist .next node_modules"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
+
