@@ -236,7 +236,6 @@ pnpm -r type-check
 ```
 
 ---
-
 ## 🗂 API Reference
 
 | Method | Path | Auth | Description |
