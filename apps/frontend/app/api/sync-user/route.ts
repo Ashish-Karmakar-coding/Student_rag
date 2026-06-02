@@ -13,10 +13,10 @@
 
 import { NextResponse } from "next/server";
 import { auth } from "../../../auth";
-import { encode } from "next-auth/jwt";
+import { SignJWT } from "jose";
 
 const API_URL = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:8000";
-const NEXTAUTH_SECRET = process.env["NEXTAUTH_SECRET"]!;
+const NEXTAUTH_SECRET = new TextEncoder().encode(process.env["NEXTAUTH_SECRET"]!);
 
 export async function POST(): Promise<NextResponse> {
   try {
@@ -28,20 +28,21 @@ export async function POST(): Promise<NextResponse> {
 
     const { githubId, login, avatarUrl, email } = session.user;
 
-    // Create a short-lived JWT the backend can verify (NEXTAUTH_SECRET)
-    const token = await encode({
-      token: {
-        sub: githubId,
-        githubId,
-        login,
-        avatarUrl,
-        email: email ?? null,
-      },
-      secret: NEXTAUTH_SECRET,
-      salt: "authjs.session-token",
-    });
+    // Create a short-lived JWS the backend can verify (NEXTAUTH_SECRET)
+    const token = await new SignJWT({
+      sub: githubId,
+      githubId,
+      login,
+      avatarUrl,
+      email: email ?? null,
+    })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("5m")
+      .sign(NEXTAUTH_SECRET);
 
     // POST to the backend
+    console.log("[sync-user] Sending token to backend:", token.substring(0, 10) + "...");
     const backendRes = await fetch(`${API_URL}/auth/sync`, {
       method: "POST",
       headers: {
@@ -52,11 +53,14 @@ export async function POST(): Promise<NextResponse> {
     });
 
     if (!backendRes.ok) {
+      console.error("[sync-user] Backend rejected sync:", backendRes.status);
       const err = await backendRes.json().catch(() => ({ error: "Unknown" }));
+      console.error("[sync-user] Backend error body:", err);
       return NextResponse.json(err, { status: backendRes.status });
     }
 
     const data = await backendRes.json() as { ok: boolean };
+    console.log("[sync-user] Backend sync success:", data);
 
     // Mirror the backend's Set-Cookie header (access_token)
     const response = NextResponse.json(data);

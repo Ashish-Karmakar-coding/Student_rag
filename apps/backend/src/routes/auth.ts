@@ -31,7 +31,8 @@ authRoutes.post("/sync", async (c) => {
   let nextAuthPayload;
   try {
     nextAuthPayload = await verifyNextAuthToken(token);
-  } catch {
+  } catch (err) {
+    console.error("verifyNextAuthToken failed:", err);
     return c.json({ error: "Invalid NextAuth token" }, 401);
   }
 
