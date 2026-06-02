@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Upload, FileText, Loader2, CheckCircle2,
-  XCircle, FolderOpen, Sparkles, X, AlertCircle,
+  XCircle, FolderOpen, Sparkles, X,
 } from "lucide-react";
 import { uploadFiles, getIngestStatus } from "../../../lib/api";
 import type { IngestStatusResponse } from "@study-tutor/shared";
@@ -96,33 +96,33 @@ export default function UploadPage() {
   const validCount = entries.filter((e) => !e.error).length;
 
   return (
-    <div className="min-h-screen p-8 max-w-3xl mx-auto">
+    <div className="min-h-screen p-8 max-w-3xl mx-auto bg-surface-base text-text-primary font-body-default">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600/30 to-indigo-700/20 border border-violet-500/25 flex items-center justify-center">
-            <Upload size={20} className="text-violet-400" />
+          <div className="w-10 h-10 rounded bg-surface-raised border border-border-default flex items-center justify-center">
+            <Upload size={20} className="text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">Upload Study Materials</h1>
-            <p className="text-sm text-white/40">PDF, DOCX, or Markdown · Max 50MB per file</p>
+            <h1 className="text-sm font-bold tracking-tight uppercase">Upload Study Materials</h1>
+            <p className="text-xs text-text-muted font-label-mono">PDF, DOCX, or Markdown · Max 50MB per file</p>
           </div>
         </div>
       </motion.div>
 
       {/* Drop zone */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
+        transition={{ delay: 0.08 }}
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         onClick={() => inputRef.current?.click()}
-        className={`relative border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all duration-300 ${
+        className={`relative border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-all duration-200 ${
           dragging
-            ? "border-violet-500 bg-violet-500/10 shadow-glow-sm"
-            : "border-white/10 hover:border-violet-500/40 hover:bg-white/[0.02]"
+            ? "border-primary bg-primary/5"
+            : "border-border-default hover:border-primary/40 hover:bg-surface-raised/40"
         }`}
       >
         <input
@@ -135,15 +135,15 @@ export default function UploadPage() {
         />
         <AnimatePresence mode="wait">
           {dragging ? (
-            <motion.div key="dragging" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-              <FolderOpen size={40} className="text-violet-400 mx-auto mb-3" />
-              <p className="font-semibold text-violet-300">Drop to upload</p>
+            <motion.div key="dragging" initial={{ scale: 0.98, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+              <FolderOpen size={36} className="text-primary mx-auto mb-3" />
+              <p className="font-semibold text-xs font-label-caps text-primary">Drop to upload</p>
             </motion.div>
           ) : (
             <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <Upload size={36} className="text-white/20 mx-auto mb-3" />
-              <p className="font-semibold text-white/70 mb-1">Drag files here or click to browse</p>
-              <p className="text-sm text-white/30">PDF · DOCX · Markdown · Plain text</p>
+              <Upload size={32} className="text-text-muted mx-auto mb-3" />
+              <p className="font-semibold text-xs text-text-secondary mb-1">Drag files here or click to browse</p>
+              <p className="text-[10px] font-label-mono text-text-muted">PDF · DOCX · Markdown · Plain text</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -152,32 +152,32 @@ export default function UploadPage() {
       {/* File list */}
       <AnimatePresence>
         {entries.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-4 space-y-2">
+          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-4 space-y-2">
             {entries.map((entry) => (
-              <div key={entry.id} className="glass flex items-center gap-3 px-4 py-3 rounded-xl">
-                <FileText size={18} className={entry.error ? "text-red-400" : "text-violet-400"} />
+              <div key={entry.id} className="bg-surface-raised border border-border-subtle flex items-center gap-3 px-4 py-3 rounded-lg">
+                <FileText size={16} className={entry.error ? "text-error" : "text-primary"} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{entry.file.name}</div>
+                  <div className="text-xs font-semibold truncate text-text-primary">{entry.file.name}</div>
                   {entry.error
-                    ? <div className="text-xs text-red-400">{entry.error}</div>
-                    : <div className="text-xs text-white/35">{(entry.file.size / 1024 / 1024).toFixed(2)} MB</div>
+                    ? <div className="text-[10px] font-label-mono text-error">{entry.error}</div>
+                    : <div className="text-[9px] font-label-mono text-text-muted">{(entry.file.size / 1024 / 1024).toFixed(2)} MB</div>
                   }
                 </div>
-                <button onClick={() => setEntries((p) => p.filter((e) => e.id !== entry.id))} className="text-white/25 hover:text-red-400 transition-colors">
-                  <X size={16} />
+                <button onClick={() => setEntries((p) => p.filter((e) => e.id !== entry.id))} className="text-text-muted hover:text-error transition-colors p-0.5">
+                  <X size={14} />
                 </button>
               </div>
             ))}
 
             <div className="flex items-center justify-between pt-2">
-              <span className="text-sm text-white/40">{validCount} file{validCount !== 1 ? "s" : ""} ready to upload</span>
+              <span className="text-xs font-label-mono text-text-muted">{validCount} file{validCount !== 1 ? "s" : ""} ready to upload</span>
               <button
                 id="upload-submit-btn"
                 onClick={handleUpload}
                 disabled={uploading || validCount === 0}
-                className="btn-primary flex items-center gap-2 py-2.5 px-6 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-primary flex items-center gap-2 py-2 px-5 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {uploading ? <><Loader2 size={15} className="animate-spin" /> Uploading…</> : <><Sparkles size={15} /> Process {validCount} file{validCount !== 1 ? "s" : ""}</>}
+                {uploading ? <><Loader2 size={12} className="animate-spin" /> Uploading…</> : <><Sparkles size={12} /> Process {validCount} file{validCount !== 1 ? "s" : ""}</>}
               </button>
             </div>
           </motion.div>
@@ -187,13 +187,13 @@ export default function UploadPage() {
       {/* Job progress */}
       <AnimatePresence>
         {job && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 glass p-6 rounded-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold">Processing</h2>
-              <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                job.status === "done" ? "bg-green-500/15 text-green-400" :
-                job.status === "error" ? "bg-red-500/15 text-red-400" :
-                "bg-violet-500/15 text-violet-400"
+          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-6 bg-surface-raised border border-border-default p-6 rounded-lg">
+            <div className="flex items-center justify-between mb-4 border-b border-border-subtle pb-3">
+              <h2 className="font-semibold text-xs tracking-tight uppercase">Processing Documents</h2>
+              <span className={`text-[10px] font-label-mono font-medium px-2 py-0.5 rounded border ${
+                job.status === "done" ? "bg-primary/10 border-primary/20 text-primary" :
+                job.status === "error" ? "bg-error/10 border-error/20 text-error" :
+                "bg-surface-overlay border-border-subtle text-text-muted"
               }`}>
                 {job.status}
               </span>
@@ -202,23 +202,23 @@ export default function UploadPage() {
             {/* Progress bar */}
             <div className="mastery-bar mb-4">
               <motion.div
-                className="mastery-bar-fill bg-gradient-to-r from-violet-500 to-indigo-500"
+                className="mastery-bar-fill bg-primary"
                 animate={{ width: `${job.progress}%` }}
                 transition={{ duration: 0.5 }}
               />
             </div>
 
             {/* Files */}
-            <div className="space-y-2">
+            <div className="space-y-2 mb-4">
               {job.files.map((f) => (
-                <div key={f.fileName} className="flex items-center gap-3 text-sm">
-                  {f.status === "done" ? <CheckCircle2 size={16} className="text-green-400 shrink-0" />
-                    : f.status === "error" ? <XCircle size={16} className="text-red-400 shrink-0" />
-                    : f.status === "processing" ? <Loader2 size={16} className="text-violet-400 animate-spin shrink-0" />
-                    : <div className="w-4 h-4 rounded-full border border-white/15 shrink-0" />}
-                  <span className="truncate text-white/70">{f.fileName}</span>
+                <div key={f.fileName} className="flex items-center gap-3 text-xs">
+                  {f.status === "done" ? <CheckCircle2 size={14} className="text-primary shrink-0" />
+                    : f.status === "error" ? <XCircle size={14} className="text-error shrink-0" />
+                    : f.status === "processing" ? <Loader2 size={14} className="text-primary animate-spin shrink-0" />
+                    : <div className="w-3.5 h-3.5 rounded-full border border-border-default shrink-0" />}
+                  <span className="truncate text-text-secondary">{f.fileName}</span>
                   {f.status === "done" && f.conceptsFound.length > 0 && (
-                    <span className="text-xs text-white/30 ml-auto shrink-0">{f.conceptsFound.length} concepts</span>
+                    <span className="text-[10px] font-label-mono text-text-muted ml-auto shrink-0">{f.conceptsFound.length} concepts</span>
                   )}
                 </div>
               ))}
@@ -226,9 +226,9 @@ export default function UploadPage() {
 
             {/* Concepts found */}
             {job.status === "done" && job.conceptsFound.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-white/5">
-                <p className="text-xs text-white/40 mb-2">Concepts indexed:</p>
-                <div className="flex flex-wrap gap-1.5">
+              <div className="mt-4 pt-4 border-t border-border-subtle">
+                <p className="text-[10px] font-label-caps text-text-muted mb-2.5">Concepts Indexed:</p>
+                <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
                   {job.conceptsFound.slice(0, 20).map((c) => (
                     <span key={c} className="concept-pill">{c}</span>
                   ))}

@@ -15,77 +15,86 @@ const config: Config = {
         mono: ["JetBrains Mono", ...fontFamily.mono],
       },
       colors: {
-        // Brand palette — violet/indigo spectrum
-        brand: {
-          50:  "#f5f3ff",
-          100: "#ede9fe",
-          200: "#ddd6fe",
-          300: "#c4b5fd",
-          400: "#a78bfa",
-          500: "#8b5cf6",
-          600: "#7c3aed",
-          700: "#6d28d9",
-          800: "#5b21b6",
-          900: "#4c1d95",
-          950: "#2e1065",
-        },
-        // Surface colours for dark mode
+        // Kinetic Logic Color Spectrum
         surface: {
-          0:    "#090910",  // deepest background
-          50:   "#0d0d18",
-          100:  "#11111f",
-          200:  "#161627",
-          300:  "#1c1c33",
-          400:  "#22223d",
-          500:  "#2a2a4a",
+          base: "#0C0C0E",       // Foundation background (deep floor)
+          raised: "#111113",     // Sidebar, cards, containers (raised floor)
+          overlay: "#18181B",    // Modals, popovers, context menus
+          sunken: "#0A0A0C",     // Input fields, search bars
+          dim: "#131315",
+          bright: "#39393b",
+          container: {
+            lowest: "#0e0e10",
+            low: "#1b1b1d",
+            DEFAULT: "#201f21",
+            high: "#2a2a2c",
+            highest: "#353437",
+          }
         },
-        // Accent for highlights
-        accent: {
-          violet: "#7c3aed",
-          indigo: "#4f46e5",
-          cyan:   "#06b6d4",
-          pink:   "#ec4899",
+        primary: {
+          DEFAULT: "#0F9B7C",    // Refined Teal (primary accent)
+          accent: "#0F9B7C",
+          container: "#21a383",
+          fixed: "#84f7d3",
+          dim: "#66dab8",
+          on: "#00382b",
         },
+        secondary: {
+          DEFAULT: "#7C7AE0",    // Slate Purple (tag/secondary accent)
+          accent: "#7C7AE0",
+          container: "#3e3b9e",
+          fixed: "#e2dfff",
+          dim: "#c3c1ff",
+          on: "#241e85",
+        },
+        tertiary: {
+          DEFAULT: "#c8c5ca",
+          container: "#929094",
+        },
+        error: {
+          DEFAULT: "#ffb4ab",
+          container: "#93000a",
+          on: "#690005",
+        },
+        border: {
+          subtle: "rgba(255, 255, 255, 0.05)",
+          default: "rgba(255, 255, 255, 0.12)",
+        },
+        text: {
+          primary: "#e5e1e4",
+          secondary: "#bccac3",
+          muted: "#87948d",
+        }
       },
-      backgroundImage: {
-        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "gradient-hero":
-          "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124,58,237,0.3) 0%, transparent 60%)",
-        "gradient-card":
-          "linear-gradient(135deg, rgba(124,58,237,0.08) 0%, rgba(79,70,229,0.04) 100%)",
+      borderRadius: {
+        sm: "0.125rem",        // 2px
+        DEFAULT: "0.25rem",    // 4px
+        md: "0.375rem",        // 6px
+        lg: "0.5rem",          // 8px
+        xl: "0.75rem",         // 12px
+        full: "9999px",
       },
       boxShadow: {
-        "glow-violet": "0 0 40px rgba(124,58,237,0.35)",
-        "glow-sm":     "0 0 20px rgba(124,58,237,0.20)",
-        "glass":       "0 4px 32px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.06)",
+        "hard-modal": "0 4px 0px 0px #000000", // Subtle, sharp 4px black shadow with 0% blur
       },
       animation: {
-        "fade-up":    "fadeUp 0.5s ease forwards",
-        "fade-in":    "fadeIn 0.4s ease forwards",
-        "pulse-slow": "pulse 4s cubic-bezier(0.4,0,0.6,1) infinite",
-        "float":      "float 6s ease-in-out infinite",
-        "shimmer":    "shimmer 2s linear infinite",
+        "fade-up": "fadeUp 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "fade-in": "fadeIn 150ms ease forwards",
+        "scale-in": "scaleIn 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards",
       },
       keyframes: {
         fadeUp: {
-          "0%":   { opacity: "0", transform: "translateY(16px)" },
+          "0%": { opacity: "0", transform: "translateY(10px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
         fadeIn: {
-          "0%":   { opacity: "0" },
+          "0%": { opacity: "0" },
           "100%": { opacity: "1" },
         },
-        float: {
-          "0%, 100%": { transform: "translateY(0px)" },
-          "50%":      { transform: "translateY(-12px)" },
+        scaleIn: {
+          "0%": { opacity: "0", transform: "scale(0.95) translateY(10px)" },
+          "100%": { opacity: "1", transform: "scale(1) translateY(0)" },
         },
-        shimmer: {
-          "0%":   { backgroundPosition: "-200% 0" },
-          "100%": { backgroundPosition: "200% 0" },
-        },
-      },
-      backdropBlur: {
-        xs: "2px",
       },
     },
   },

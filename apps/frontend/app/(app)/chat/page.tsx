@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import {
   Send, Zap, BookOpen, Brain, StopCircle,
@@ -92,37 +92,37 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-surface-base text-text-primary font-body-default">
       {/* ── Session sidebar ─────────────────────────────────────────────── */}
-      <div className="w-60 shrink-0 border-r border-white/5 bg-[#0d0d18] flex flex-col">
-        <div className="p-4 border-b border-white/5 flex items-center justify-between">
-          <span className="text-sm font-semibold text-white/60">History</span>
+      <div className="w-56 shrink-0 border-r border-border-subtle bg-surface-raised flex flex-col">
+        <div className="p-4 border-b border-border-subtle flex items-center justify-between shrink-0">
+          <span className="text-[10px] font-label-caps text-text-muted">History</span>
           <button
             onClick={() => { clearMessages(); setActiveSessionId(null); }}
-            className="text-xs text-white/30 hover:text-violet-400 transition-colors"
+            className="text-xs font-semibold text-primary hover:text-text-primary transition-colors"
           >
             New chat
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
+        <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
           {sessions.length === 0 && (
-            <p className="text-xs text-white/25 text-center mt-6 px-3">No sessions yet. Start chatting!</p>
+            <p className="text-xs font-label-mono text-text-muted text-center mt-6 px-3">No sessions yet. Start chatting!</p>
           )}
           {sessions.map((s) => (
             <button
               key={s.id}
               onClick={() => loadSession(s.id)}
-              className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-white/[0.04] transition-colors group flex items-start justify-between gap-2"
+              className="w-full text-left px-3 py-2 rounded hover:bg-surface-overlay border border-transparent hover:border-border-subtle transition-all duration-150 group flex items-start justify-between gap-2"
             >
               <div className="min-w-0">
-                <div className="text-xs font-medium text-white/70 truncate capitalize">{s.subject}</div>
-                <div className="text-[10px] text-white/30 mt-0.5">
+                <div className="text-xs font-medium text-text-primary truncate capitalize">{s.subject}</div>
+                <div className="text-[9px] font-label-mono text-text-muted mt-0.5">
                   {new Date(s.updatedAt).toLocaleDateString()}
                 </div>
               </div>
               <button
                 onClick={(e) => handleDeleteSession(s.id, e)}
-                className="opacity-0 group-hover:opacity-100 transition-opacity text-white/20 hover:text-red-400 shrink-0 mt-0.5"
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-text-muted hover:text-red-400 shrink-0 mt-0.5"
               >
                 <Trash2 size={12} />
               </button>
@@ -132,28 +132,28 @@ export default function ChatPage() {
       </div>
 
       {/* ── Main chat area ──────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 bg-surface-base">
         {/* Top bar */}
-        <div className="border-b border-white/5 px-6 py-4 flex items-center justify-between bg-[#0d0d18]/80 backdrop-blur-sm">
+        <div className="border-b border-border-subtle px-6 py-4 flex items-center justify-between bg-surface-raised/90 backdrop-blur-sm shrink-0">
           <div className="flex items-center gap-2">
-            <Brain size={18} className="text-violet-400" />
-            <span className="font-semibold text-sm">Study Chat</span>
+            <Brain size={16} className="text-primary animate-pulse" />
+            <span className="font-semibold text-xs tracking-tight text-text-primary">Study Chat</span>
           </div>
 
           {/* Mode toggle */}
-          <div className="flex items-center gap-1 p-1 bg-white/[0.04] rounded-xl border border-white/[0.06]">
+          <div className="flex items-center gap-1 p-0.5 bg-surface-sunken rounded border border-border-subtle">
             {(["explain", "quiz"] as const).map((mode) => (
               <button
                 key={mode}
                 id={`mode-${mode}-btn`}
                 onClick={() => setActiveMode(mode)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-semibold transition-all ${
                   activeMode === mode
-                    ? "bg-violet-600 text-white shadow-glow-sm"
-                    : "text-white/40 hover:text-white/70"
+                    ? "bg-primary text-surface-base"
+                    : "text-text-muted hover:text-text-primary"
                 }`}
               >
-                {mode === "explain" ? <BookOpen size={13} /> : <Zap size={13} />}
+                {mode === "explain" ? <BookOpen size={12} /> : <Zap size={12} />}
                 {mode === "explain" ? "Explain" : "Quiz Me"}
               </button>
             ))}
@@ -161,14 +161,14 @@ export default function ChatPage() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
           {messages.length === 0 && !loadingSession && (
             <div className="h-full flex flex-col items-center justify-center text-center py-20">
-              <div className="w-16 h-16 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-5">
-                <MessageSquare size={28} className="text-violet-400" />
+              <div className="w-12 h-12 rounded bg-surface-sunken border border-border-default flex items-center justify-center mb-4 shrink-0">
+                <MessageSquare size={20} className="text-primary" />
               </div>
-              <h2 className="text-lg font-semibold mb-2">Ask anything about your materials</h2>
-              <p className="text-sm text-white/35 max-w-xs">
+              <h2 className="text-sm font-semibold text-text-primary mb-1">Ask anything about your materials</h2>
+              <p className="text-xs text-text-muted max-w-xs font-body-default">
                 Upload your notes first, then ask questions or switch to Quiz mode.
               </p>
             </div>
@@ -176,7 +176,7 @@ export default function ChatPage() {
 
           {loadingSession && (
             <div className="flex items-center justify-center py-20">
-              <Loader2 size={24} className="text-violet-400 animate-spin" />
+              <Loader2 size={20} className="text-primary animate-spin" />
             </div>
           )}
 
@@ -184,17 +184,17 @@ export default function ChatPage() {
             {messages.map((msg, i) => (
               <motion.div
                 key={`${i}-${msg.timestamp}`}
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
-                <div className={`max-w-[75%] ${msg.role === "user" ? "order-2" : "order-1"}`}>
+                <div className={`max-w-[80%] ${msg.role === "user" ? "order-2" : "order-1"}`}>
                   {msg.role === "user" ? (
-                    <div className="bg-violet-600/25 border border-violet-500/25 rounded-2xl rounded-tr-sm px-4 py-3 text-sm text-white/90">
+                    <div className="bg-surface-sunken border border-border-default rounded-lg rounded-tr-sm px-4 py-2.5 text-xs text-text-primary leading-relaxed font-body-default">
                       {msg.text}
                     </div>
                   ) : (
-                    <div className="glass rounded-2xl rounded-tl-sm px-5 py-4">
+                    <div className="bg-surface-raised border border-border-subtle rounded-lg rounded-tl-sm px-5 py-4">
                       {msg.isStreaming && msg.text === "" ? (
                         <div className="flex items-center gap-1 py-1">
                           <div className="typing-dot" />
@@ -202,15 +202,15 @@ export default function ChatPage() {
                           <div className="typing-dot" />
                         </div>
                       ) : (
-                        <div className="prose-dark text-sm text-white/85 whitespace-pre-wrap leading-relaxed">
+                        <div className="prose-dark text-xs text-text-primary whitespace-pre-wrap leading-relaxed">
                           {msg.text}
-                          {msg.isStreaming && <span className="inline-block w-0.5 h-4 bg-violet-400 ml-0.5 animate-pulse align-middle" />}
+                          {msg.isStreaming && <span className="inline-block w-1.5 h-3.5 bg-primary ml-0.5 animate-pulse align-middle" />}
                         </div>
                       )}
 
                       {/* Concept tags */}
                       {!msg.isStreaming && msg.conceptTags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-3 pt-3 border-t border-white/5">
+                        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-border-subtle">
                           {msg.conceptTags.slice(0, 6).map((tag) => (
                             <span key={tag} className="concept-pill">{tag}</span>
                           ))}
@@ -219,10 +219,10 @@ export default function ChatPage() {
 
                       {/* Sources */}
                       {!msg.isStreaming && msg.sources.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
+                        <div className="mt-2 flex flex-wrap gap-1">
                           {msg.sources.slice(0, 3).map((src, j) => (
-                            <div key={j} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[10px] text-white/30">
-                              <FileText size={10} />
+                            <div key={j} className="flex items-center gap-1 px-2 py-0.5 rounded bg-surface-sunken border border-border-subtle text-[10px] font-label-mono text-text-muted">
+                              <FileText size={10} className="text-primary shrink-0" />
                               <span className="truncate max-w-[100px]">{src.fileName}</span>
                               {src.page && <span>p.{src.page}</span>}
                             </div>
@@ -240,16 +240,16 @@ export default function ChatPage() {
           <AnimatePresence>
             {masteryHint && !isStreaming && (
               <motion.div
-                initial={{ opacity: 0, y: 6 }}
+                initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/8 border border-amber-500/15 text-xs"
+                className="flex items-center gap-2 px-4 py-2.5 rounded bg-surface-raised border border-border-default text-xs font-body-default"
               >
-                <Lightbulb size={14} className="text-amber-400 shrink-0" />
-                <span className="text-white/50">
-                  Weak concept: <span className="text-amber-300 font-medium">{masteryHint.weakConcept}</span>{" "}
-                  — mastery{" "}
-                  <span style={{ color: getMasteryColor(masteryHint.score) }}>
+                <Lightbulb size={13} className="text-secondary shrink-0" />
+                <span className="text-text-muted">
+                  Focus suggestion: <span className="text-text-primary font-medium">{masteryHint.weakConcept}</span>{" "}
+                  — current mastery{" "}
+                  <span style={{ color: getMasteryColor(masteryHint.score) }} className="font-semibold">
                     {Math.round(masteryHint.score * 100)}%
                   </span>
                 </span>
@@ -261,7 +261,7 @@ export default function ChatPage() {
         </div>
 
         {/* Input */}
-        <div className="border-t border-white/5 px-6 py-4 bg-[#0d0d18]/60 backdrop-blur-sm">
+        <div className="border-t border-border-subtle px-6 py-4 bg-surface-raised/95 shrink-0">
           <div className="flex items-end gap-3">
             <textarea
               ref={textareaRef}
@@ -271,23 +271,23 @@ export default function ChatPage() {
               onChange={handleTextareaChange}
               onKeyDown={handleKeyDown}
               placeholder={activeMode === "explain" ? "Ask about your study materials…" : "Request a quiz question…"}
-              className="input-field flex-1 resize-none min-h-[44px] max-h-[160px] py-3 leading-relaxed"
+              className="input-field flex-1 resize-none min-h-[42px] max-h-[160px] py-2.5 leading-relaxed"
               disabled={isStreaming}
             />
             <button
               id="chat-send-btn"
               onClick={isStreaming ? stop : handleSend}
               disabled={!isStreaming && !query.trim()}
-              className={`shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-all ${
+              className={`shrink-0 w-10.5 h-10.5 rounded flex items-center justify-center transition-all ${
                 isStreaming
-                  ? "bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30"
-                  : "btn-primary p-0 w-11 h-11 disabled:opacity-40"
+                  ? "bg-surface-sunken border border-error text-error hover:bg-error/10"
+                  : "btn-primary p-0 w-10.5 h-10.5 disabled:opacity-40"
               }`}
             >
-              {isStreaming ? <StopCircle size={18} /> : <Send size={18} />}
+              {isStreaming ? <StopCircle size={16} /> : <Send size={16} />}
             </button>
           </div>
-          <p className="text-[10px] text-white/20 mt-2">
+          <p className="text-[10px] font-label-mono text-text-muted mt-2">
             {activeMode === "explain" ? "Explain mode — context-grounded answers" : "Quiz mode — Socratic questions based on your weak spots"}
             {" · "}Enter to send · Shift+Enter for newline
           </p>

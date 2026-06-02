@@ -57,15 +57,15 @@ export default function QuizPage() {
   const scorePct = result ? Math.round(result.score * 100) : 0;
 
   return (
-    <div className="min-h-screen p-8 max-w-2xl mx-auto flex flex-col">
+    <div className="min-h-screen p-8 max-w-2xl mx-auto flex flex-col bg-surface-base text-text-primary font-body-default">
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3 mb-8">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600/30 to-cyan-700/20 border border-indigo-500/25 flex items-center justify-center">
-          <Zap size={20} className="text-indigo-400" />
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3 mb-8 shrink-0">
+        <div className="w-10 h-10 rounded bg-surface-raised border border-border-default flex items-center justify-center">
+          <Zap size={20} className="text-primary" />
         </div>
         <div>
-          <h1 className="text-xl font-bold">Quiz Mode</h1>
-          <p className="text-sm text-white/40">Socratic questions targeting your weakest concepts</p>
+          <h1 className="text-sm font-bold tracking-tight text-text-primary uppercase">Quiz Mode</h1>
+          <p className="text-xs text-text-muted font-label-mono">Socratic questions targeting your weakest concepts</p>
         </div>
       </motion.div>
 
@@ -74,18 +74,18 @@ export default function QuizPage() {
           {/* ── Idle ──────────────────────────────────────────────────────── */}
           {phase === "idle" && (
             <motion.div key="idle" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-              className="glass rounded-3xl p-12 text-center"
+              className="bg-surface-raised border border-border-default rounded-lg p-10 text-center"
             >
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-cyan-500/10 border border-indigo-500/25 flex items-center justify-center mx-auto mb-6">
-                <Brain size={36} className="text-indigo-400" />
+              <div className="w-16 h-16 rounded bg-surface-sunken border border-border-default flex items-center justify-center mx-auto mb-6">
+                <Brain size={28} className="text-primary" />
               </div>
-              <h2 className="text-2xl font-bold mb-3">Ready to be tested?</h2>
-              <p className="text-white/45 text-sm mb-8 max-w-sm mx-auto leading-relaxed">
+              <h2 className="text-base font-bold mb-2 tracking-tight text-text-primary">Ready to be tested?</h2>
+              <p className="text-text-muted text-xs mb-8 max-w-sm mx-auto leading-relaxed font-body-default">
                 The tutor will ask a Socratic question targeting your weakest concept.
                 Your answer updates your mastery score.
               </p>
               <button id="quiz-start-btn" onClick={fetchQuestion} className="btn-primary flex items-center gap-2 mx-auto">
-                Start Quiz <Zap size={16} />
+                Start Quiz <Zap size={14} />
               </button>
             </motion.div>
           )}
@@ -93,50 +93,49 @@ export default function QuizPage() {
           {/* ── Loading question ───────────────────────────────────────────── */}
           {phase === "loading-q" && (
             <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="glass rounded-3xl p-12 text-center"
+              className="bg-surface-raised border border-border-default rounded-lg p-12 text-center"
             >
-              <Loader2 size={32} className="text-violet-400 animate-spin mx-auto mb-4" />
-              <p className="text-white/50">Generating your next question…</p>
+              <Loader2 size={24} className="text-primary animate-spin mx-auto mb-4" />
+              <p className="text-xs font-label-mono text-text-muted">Generating your next question…</p>
             </motion.div>
           )}
 
           {/* ── Question ───────────────────────────────────────────────────── */}
           {(phase === "question" || phase === "answering") && question && (
-            <motion.div key="question" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="space-y-4"
+            <motion.div key="question" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="space-y-5"
             >
               {/* Metadata */}
-              <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="concept-pill">{question.concept}</span>
-                <span className="text-xs px-2 py-1 rounded-full border border-white/10 text-white/40 capitalize">
+                <span className="text-[10px] font-label-mono px-2 py-0.5 rounded border border-border-subtle bg-surface-sunken text-text-secondary capitalize">
                   {question.difficulty}
                 </span>
-                <span className="text-xs text-white/30 ml-auto">
-                  Mastery: <span style={{ color: getMasteryColor(question.masteryBefore) }}>
+                <span className="text-xs font-label-mono text-text-muted ml-auto">
+                  Mastery: <span style={{ color: getMasteryColor(question.masteryBefore) }} className="font-bold">
                     {Math.round(question.masteryBefore * 100)}%
                   </span>
                 </span>
               </div>
 
               {/* Question card */}
-              <div className="glass rounded-2xl p-6"
-                style={{ borderColor: "rgba(79,70,229,0.2)", background: "linear-gradient(135deg, rgba(79,70,229,0.08), rgba(6,182,212,0.04))" }}
+              <div className="bg-surface-raised border border-border-default rounded-lg p-5"
               >
                 <div className="flex items-start gap-3">
-                  <Zap size={20} className="text-indigo-400 mt-0.5 shrink-0" />
-                  <p className="text-white/90 leading-relaxed font-medium">{question.question}</p>
+                  <Zap size={16} className="text-primary mt-0.5 shrink-0" />
+                  <p className="text-text-primary text-sm leading-relaxed font-medium">{question.question}</p>
                 </div>
 
                 {/* Hint */}
                 <div className="mt-4">
-                  <button onClick={() => setHintVisible(!hintVisible)} className="text-xs text-white/30 hover:text-amber-400 transition-colors flex items-center gap-1">
-                    <Lightbulb size={12} />
+                  <button onClick={() => setHintVisible(!hintVisible)} className="text-xs font-label-mono text-text-muted hover:text-secondary transition-colors flex items-center gap-1">
+                    <Lightbulb size={12} className="text-secondary" />
                     {hintVisible ? "Hide hint" : "Show hint"}
                   </button>
                   <AnimatePresence>
                     {hintVisible && (
                       <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-                        className="text-xs text-amber-300/70 mt-2 pl-2 border-l border-amber-500/30"
+                        className="text-xs text-secondary bg-surface-sunken p-3 border-l-2 border-secondary rounded-r mt-2 font-body-default"
                       >
                         💡 {question.hint}
                       </motion.p>
@@ -147,14 +146,14 @@ export default function QuizPage() {
 
               {/* Answer */}
               <div>
-                <label className="text-xs text-white/40 mb-2 block">Your answer</label>
+                <label className="text-[10px] font-label-caps text-text-muted mb-2 block">Your answer</label>
                 <textarea
                   id="quiz-answer-input"
                   rows={4}
                   value={answer}
                   onChange={(e) => { setAnswer(e.target.value); setPhase("answering"); }}
                   placeholder="Type your answer here… Think through the concept step by step."
-                  className="input-field resize-none"
+                  className="input-field resize-none min-h-[100px] leading-relaxed"
                 />
               </div>
 
@@ -165,10 +164,10 @@ export default function QuizPage() {
                   disabled={!answer.trim()}
                   className="btn-primary flex items-center gap-2 disabled:opacity-40"
                 >
-                  Submit Answer <ArrowRight size={15} />
+                  Submit Answer <ArrowRight size={14} />
                 </button>
-                <button onClick={fetchQuestion} className="btn-ghost flex items-center gap-2">
-                  <RefreshCw size={14} /> New question
+                <button onClick={fetchQuestion} className="btn-secondary flex items-center gap-1.5">
+                  <RefreshCw size={12} /> New question
                 </button>
               </div>
             </motion.div>
@@ -177,63 +176,63 @@ export default function QuizPage() {
           {/* ── Evaluating ─────────────────────────────────────────────────── */}
           {phase === "evaluating" && (
             <motion.div key="evaluating" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="glass rounded-3xl p-12 text-center"
+              className="bg-surface-raised border border-border-default rounded-lg p-12 text-center"
             >
-              <Loader2 size={32} className="text-violet-400 animate-spin mx-auto mb-4" />
-              <p className="text-white/50">Evaluating your answer…</p>
+              <Loader2 size={24} className="text-primary animate-spin mx-auto mb-4" />
+              <p className="text-xs font-label-mono text-text-muted">Evaluating your answer…</p>
             </motion.div>
           )}
 
           {/* ── Result ─────────────────────────────────────────────────────── */}
           {phase === "result" && result && question && (
-            <motion.div key="result" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+            <motion.div key="result" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
               {/* Score */}
-              <div className="glass rounded-2xl p-6" style={{ borderColor: `${scoreColor}30` }}>
+              <div className="bg-surface-raised border border-border-default rounded-lg p-5">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     {result.score >= 0.6
-                      ? <CheckCircle2 size={20} className="text-green-400" />
-                      : <XCircle size={20} className="text-red-400" />
+                      ? <CheckCircle2 size={18} className="text-primary" />
+                      : <XCircle size={18} className="text-error" />
                     }
-                    <span className="font-semibold">
+                    <span className="font-semibold text-sm">
                       {result.score >= 0.6 ? "Good job!" : result.score >= 0.4 ? "Partially correct" : "Keep practicing"}
                     </span>
                   </div>
-                  <span className="text-3xl font-black" style={{ color: scoreColor }}>{scorePct}%</span>
+                  <span className="text-2xl font-black" style={{ color: scoreColor }}>{scorePct}%</span>
                 </div>
 
                 {/* Mastery delta */}
-                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/5">
-                  <div className="text-xs text-white/40">Mastery change:</div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs" style={{ color: getMasteryColor(result.masteryBefore) }}>
+                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border-subtle">
+                  <div className="text-[10px] font-label-caps text-text-muted">Mastery change:</div>
+                  <div className="flex items-center gap-1.5 font-label-mono text-xs">
+                    <span style={{ color: getMasteryColor(result.masteryBefore) }} className="font-semibold">
                       {Math.round(result.masteryBefore * 100)}%
                     </span>
-                    <ChevronRight size={12} className="text-white/25" />
-                    <span className="text-sm font-bold" style={{ color: getMasteryColor(result.masteryAfter) }}>
+                    <ChevronRight size={12} className="text-text-muted" />
+                    <span style={{ color: getMasteryColor(result.masteryAfter) }} className="font-bold">
                       {Math.round(result.masteryAfter * 100)}%
                     </span>
-                    <span className={`text-xs font-medium ${result.delta >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    <span className={`font-semibold ${result.delta >= 0 ? "text-primary" : "text-error"}`}>
                       {result.delta >= 0 ? "+" : ""}{(result.delta * 100).toFixed(1)}%
                     </span>
                   </div>
                 </div>
 
                 {/* Feedback */}
-                <p className="text-sm text-white/75 leading-relaxed mb-3">{result.feedback}</p>
+                <p className="text-xs text-text-primary leading-relaxed mb-4 font-body-default">{result.feedback}</p>
 
                 {/* Explanation */}
-                <div className="bg-white/[0.03] rounded-xl p-4 border border-white/5">
-                  <p className="text-xs text-white/35 mb-2 flex items-center gap-1"><Brain size={12} /> Full explanation</p>
-                  <p className="text-sm text-white/65 leading-relaxed">{result.explanation}</p>
+                <div className="bg-surface-sunken rounded p-4 border border-border-subtle">
+                  <p className="text-[10px] font-label-caps text-text-muted mb-2 flex items-center gap-1"><Brain size={12} className="text-primary" /> Full explanation</p>
+                  <p className="text-xs text-text-secondary leading-relaxed font-body-default">{result.explanation}</p>
                 </div>
               </div>
 
               <div className="flex gap-3">
                 <button id="quiz-next-btn" onClick={fetchQuestion} className="btn-primary flex items-center gap-2">
-                  Next Question <Zap size={15} />
+                  Next Question <Zap size={14} />
                 </button>
-                <button onClick={() => setPhase("idle")} className="btn-ghost">Finish</button>
+                <button onClick={() => setPhase("idle")} className="btn-secondary">Finish</button>
               </div>
             </motion.div>
           )}
