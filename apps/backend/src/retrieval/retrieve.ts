@@ -31,10 +31,11 @@ export interface RetrievalResult {
 export async function retrieve(
   query: string,
   userId: string,
-  embedder: EmbeddingProvider
+  embedder: EmbeddingProvider,
+  fileName?: string
 ): Promise<RetrievalResult> {
   // 1. Hybrid search: dense + BM25 + RRF → top 6
-  const candidates = await hybridSearch(query, userId, embedder);
+  const candidates = await hybridSearch(query, userId, embedder, fileName);
 
   if (candidates.length === 0) {
     return { chunks: [], masteryContext: {} };

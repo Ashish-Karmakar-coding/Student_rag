@@ -61,7 +61,8 @@ interface PineconeMatch {
 async function denseRetrieve(
   query: string,
   userId: string,
-  embedder: EmbeddingProvider
+  embedder: EmbeddingProvider,
+  fileName?: string
 ): Promise<PineconeMatch[]> {
   const [queryVector] = await embedder.embed([query]);
   if (!queryVector) throw new Error("Failed to embed query");
@@ -69,11 +70,16 @@ async function denseRetrieve(
   const index = getPineconeIndex();
   const ns = index.namespace(userId);
 
+  const filter: Record<string, any> = { userId: { $eq: userId } };
+  if (fileName) {
+    filter.fileName = { $eq: fileName };
+  }
+
   const result = await ns.query({
     vector: queryVector,
     topK: DENSE_TOP_K,
     includeMetadata: true,
-    filter: { userId: { $eq: userId } },
+    filter,
   });
 
   return result.matches ?? [];
@@ -98,7 +104,7 @@ function buildSparseRanks(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((t: any) => t.out(its.type) === "word" && !t.out(its.stopWordFlag))
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .each((t: any) => tokens.push(t.out(its.lemma) === "" ? t.out(its.normal) : t.out(its.lemma)));
+      .each((t: any) => tokens.push(t.out(its.lemma) || t.out()));
     return tokens;
   };
 
@@ -156,13 +162,24 @@ function applyRRF(
 export async function hybridSearch(
   query: string,
   userId: string,
-  embedder: EmbeddingProvider
+  embedder: EmbeddingProvider,
+  fileName?: string
 ): Promise<RetrievedChunk[]> {
   // 1. Dense retrieval
-  const denseMatches = await denseRetrieve(query, userId, embedder);
+  const denseMatches = await denseRetrieve(query, userId, embedder, fileName);
 
   if (denseMatches.length === 0) {
     return [];
+  }
+
+  // If too few candidates for BM25 consolidation, just return dense ranking
+  if (denseMatches.length < 3) {
+    return denseMatches.slice(0, FINAL_TOP_K).map((match) => ({
+      id: match.id,
+      metadata: match.metadata as ChunkMetadata,
+      finalScore: match.score ?? 0,
+      denseScore: match.score ?? 0,
+    }));
   }
 
   // 2. BM25 sparse ranks over the 40 dense candidates

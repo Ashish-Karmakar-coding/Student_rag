@@ -12,7 +12,8 @@ import {
   XCircle, RefreshCw, Brain, Lightbulb, ArrowRight,
 } from "lucide-react";
 import { getNextQuestion, submitAnswer } from "../../../lib/api";
-import { getMasteryColor, invalidateMastery } from "../../../lib/useMastery";
+import { getMasteryColor, invalidateMastery, useMastery } from "../../../lib/useMastery";
+import { useFiles } from "../../../lib/useFiles";
 import type { QuizNextResponse, QuizAnswerResponse } from "@study-tutor/shared";
 
 type Phase = "idle" | "loading-q" | "question" | "answering" | "evaluating" | "result";
@@ -24,13 +25,25 @@ export default function QuizPage() {
   const [result, setResult] = useState<QuizAnswerResponse | null>(null);
   const [hintVisible, setHintVisible] = useState(false);
 
+  const [quizMode, setQuizMode] = useState<"global" | "subject" | "file">("global");
+  const [selectedSubject, setSelectedSubject] = useState("");
+  const [selectedFile, setSelectedFile] = useState("");
+
+  const { mastery } = useMastery();
+  const { files } = useFiles();
+  const subjects = Array.from(new Set(mastery.map(m => m.subject).filter(Boolean)));
+
   const fetchQuestion = async () => {
     setPhase("loading-q");
     setAnswer("");
     setResult(null);
     setHintVisible(false);
     try {
-      const q = await getNextQuestion();
+      const params: any = {};
+      if (quizMode === "subject" && selectedSubject) params.subject = selectedSubject;
+      if (quizMode === "file" && selectedFile) params.fileName = selectedFile;
+      
+      const q = await getNextQuestion(params);
       setQuestion(q);
       setPhase("question");
     } catch (err) {
@@ -80,11 +93,48 @@ export default function QuizPage() {
                 <Brain size={28} className="text-primary" />
               </div>
               <h2 className="text-base font-bold mb-2 tracking-tight text-text-primary">Ready to be tested?</h2>
-              <p className="text-text-muted text-xs mb-8 max-w-sm mx-auto leading-relaxed font-body-default">
-                The tutor will ask a Socratic question targeting your weakest concept.
-                Your answer updates your mastery score.
-              </p>
-              <button id="quiz-start-btn" onClick={fetchQuestion} className="btn-primary flex items-center gap-2 mx-auto">
+              
+              <div className="max-w-xs mx-auto mb-8 text-left">
+                <label className="text-[10px] font-label-caps text-text-muted mb-2 block">Select Quiz Target</label>
+                <select 
+                  className="input-field w-full mb-3"
+                  value={quizMode}
+                  onChange={(e) => setQuizMode(e.target.value as any)}
+                >
+                  <option value="global">Weakest Concept (Global)</option>
+                  <option value="subject">By Subject</option>
+                  <option value="file">By PDF File</option>
+                </select>
+
+                {quizMode === "subject" && (
+                  <select 
+                    className="input-field w-full"
+                    value={selectedSubject}
+                    onChange={(e) => setSelectedSubject(e.target.value)}
+                  >
+                    <option value="" disabled>Select a subject</option>
+                    {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                )}
+
+                {quizMode === "file" && (
+                  <select 
+                    className="input-field w-full"
+                    value={selectedFile}
+                    onChange={(e) => setSelectedFile(e.target.value)}
+                  >
+                    <option value="" disabled>Select a file</option>
+                    {files.map(f => <option key={f.fileName} value={f.fileName}>{f.fileName}</option>)}
+                  </select>
+                )}
+              </div>
+
+              <button 
+                id="quiz-start-btn" 
+                onClick={fetchQuestion} 
+                disabled={(quizMode === "subject" && !selectedSubject) || (quizMode === "file" && !selectedFile)}
+                className="btn-primary flex items-center gap-2 mx-auto disabled:opacity-50"
+              >
                 Start Quiz <Zap size={14} />
               </button>
             </motion.div>

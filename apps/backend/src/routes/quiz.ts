@@ -15,6 +15,7 @@ import { v4 as uuidv4 } from "uuid";
 import { QuizAnswerSchema, QuizNextQuerySchema } from "@study-tutor/shared";
 import { authMiddleware } from "../auth/middleware.js";
 import { Mastery, calcNewMasteryScore } from "../models/Mastery.js";
+import { IngestJob, type IIngestFile } from "../models/IngestJob.js";
 import { retrieve } from "../retrieval/retrieve.js";
 import { getEmbeddingProvider, getLLMProvider } from "../providers/factory.js";
 import {
@@ -66,7 +67,7 @@ quizRoutes.get("/next", async (c) => {
     return c.json({ error: "Invalid query params" }, 400);
   }
 
-  const { concept: requestedConcept, subject } = queryResult.data;
+  const { concept: requestedConcept, subject, fileName } = queryResult.data;
 
   // 1. Find the target concept (requested or weakest)
   let targetConcept: string;
@@ -79,6 +80,37 @@ quizRoutes.get("/next", async (c) => {
     }).lean();
     targetConcept = requestedConcept;
     masteryBefore = doc?.score ?? 0.5;
+  } else if (fileName) {
+    // Target by File
+    const jobs = await IngestJob.find({ 
+      userId: user.githubId, 
+      "files.fileName": fileName 
+    }).lean();
+    
+    const fileConcepts = new Set<string>();
+    for (const job of jobs) {
+      const fileInfo = job.files.find((f: IIngestFile) => f.fileName === fileName);
+      if (fileInfo?.conceptsFound) {
+        fileInfo.conceptsFound.forEach((c: string) => fileConcepts.add(c));
+      }
+    }
+    
+    if (fileConcepts.size === 0) {
+      return c.json({ error: `No concepts found for file: ${fileName}` }, 404);
+    }
+    
+    const weakest = await Mastery.findOne({ 
+      userId: user.githubId, 
+      concept: { $in: Array.from(fileConcepts) } 
+    }).sort({ score: 1 }).lean();
+    
+    if (!weakest) {
+      targetConcept = Array.from(fileConcepts)[0] as string;
+      masteryBefore = 0.5;
+    } else {
+      targetConcept = weakest.concept;
+      masteryBefore = weakest.score;
+    }
   } else {
     // Find weakest concept for this user (optionally filtered by subject)
     const query: Record<string, unknown> = { userId: user.githubId };
@@ -104,7 +136,7 @@ quizRoutes.get("/next", async (c) => {
     userId: user.githubId,
   });
 
-  const { chunks } = await retrieve(targetConcept, user.githubId, embedder);
+  const { chunks } = await retrieve(targetConcept, user.githubId, embedder, fileName);
 
   if (chunks.length === 0) {
     return c.json(

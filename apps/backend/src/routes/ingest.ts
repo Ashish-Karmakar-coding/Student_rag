@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from "uuid";
 import { authMiddleware } from "../auth/middleware.js";
 import { IngestJob } from "../models/IngestJob.js";
 import { User } from "../models/User.js";
+import { Mastery } from "../models/Mastery.js";
 import { launchIngestion, type UploadedFile } from "../ingestion/pipeline.js";
 import { deleteFileVectors } from "../ingestion/embedder.js";
 import {
@@ -113,6 +114,43 @@ ingestRoutes.post("/upload", async (c) => {
   );
 });
 
+// ── GET /files ─────────────────────────────────────────────────────────────────
+
+ingestRoutes.get("/files", async (c) => {
+  const user = c.var.user;
+
+  const jobs = await IngestJob.find({ userId: user.githubId }).lean();
+  
+  const fileMap = new Map<string, { fileName: string, concepts: string[], subject: string, uploadedAt: string }>();
+  
+  for (const job of jobs) {
+    for (const f of job.files) {
+      if (f.status === "done" || f.status === "processing") {
+        if (!fileMap.has(f.fileName)) {
+          let subject = "general";
+          if (f.conceptsFound && f.conceptsFound.length > 0) {
+            const mastery = await Mastery.findOne({ userId: user.githubId, concept: f.conceptsFound[0] }).lean();
+            if (mastery && mastery.subject) {
+              subject = mastery.subject;
+            }
+          }
+          const createdAt = job.createdAt ? new Date(job.createdAt).toISOString() : new Date().toISOString();
+          fileMap.set(f.fileName, {
+            fileName: f.fileName,
+            concepts: f.conceptsFound || [],
+            subject,
+            uploadedAt: createdAt
+          });
+        }
+      }
+    }
+  }
+  
+  const filesList = Array.from(fileMap.values()).sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+  
+  return c.json(filesList);
+});
+
 // ── GET /ingest-status/:jobId ─────────────────────────────────────────────────
 
 ingestRoutes.get("/ingest-status/:jobId", async (c) => {
@@ -182,13 +220,11 @@ ingestRoutes.delete("/upload/:fileName", async (c) => {
   // (only if no other file covers them — simplified: just leave mastery intact)
   // In production you'd cross-reference all remaining file concepts.
 
-  // Mark file as removed in the job doc
-  if (job) {
-    await IngestJob.updateOne(
-      { jobId: job.jobId, "files.fileName": fileName },
-      { $set: { "files.$.status": "error", "files.$.error": "Deleted by user" } }
-    );
-  }
+  // Mark file as removed in all job docs
+  await IngestJob.updateMany(
+    { userId: user.githubId, "files.fileName": fileName },
+    { $set: { "files.$.status": "error", "files.$.error": "Deleted by user" } }
+  );
 
   // If user has no more files, reset hasFiles
   const remainingJobs = await IngestJob.countDocuments({

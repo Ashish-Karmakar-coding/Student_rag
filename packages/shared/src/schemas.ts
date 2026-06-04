@@ -74,6 +74,7 @@ export type QuizAnswerInput = z.infer<typeof QuizAnswerSchema>;
 export const QuizNextQuerySchema = z.object({
   concept: z.string().optional(),
   subject: z.string().optional(),
+  fileName: z.string().optional(),
 });
 
 export type QuizNextQueryInput = z.infer<typeof QuizNextQuerySchema>;

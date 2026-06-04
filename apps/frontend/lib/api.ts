@@ -115,6 +115,17 @@ export function getIngestStatus(jobId: string): Promise<IngestStatusResponse> {
   return apiFetch(`/ingest-status/${jobId}`);
 }
 
+export interface FileInfo {
+  fileName: string;
+  concepts: string[];
+  subject: string;
+  uploadedAt: string;
+}
+
+export function getFiles(): Promise<FileInfo[]> {
+  return apiFetch("/files");
+}
+
 export function deleteFile(fileName: string): Promise<{ ok: boolean }> {
   return apiFetch(`/upload/${encodeURIComponent(fileName)}`, { method: "DELETE" });
 }
@@ -154,10 +165,12 @@ export function deleteSession(id: string): Promise<{ ok: boolean }> {
 export function getNextQuestion(params?: {
   concept?: string;
   subject?: string;
+  fileName?: string;
 }): Promise<QuizNextResponse> {
   const qs = new URLSearchParams();
   if (params?.concept) qs.set("concept", params.concept);
   if (params?.subject) qs.set("subject", params.subject);
+  if (params?.fileName) qs.set("fileName", params.fileName);
   const query = qs.toString() ? `?${qs.toString()}` : "";
   return apiFetch(`/quiz/next${query}`);
 }
