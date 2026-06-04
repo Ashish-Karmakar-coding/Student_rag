@@ -200,11 +200,6 @@ ingestRoutes.delete("/upload/:fileName", async (c) => {
     return c.json({ error: "fileName is required" }, 400);
   }
 
-  // Find the job that ingested this file to know the chunk count
-  const job = await IngestJob.findOne({
-    userId: user.githubId,
-    "files.fileName": fileName,
-  }).lean();
 
   // Estimate chunk count for vector deletion
   // If job not found, attempt deletion with a generous upper bound
