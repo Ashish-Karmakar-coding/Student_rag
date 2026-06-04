@@ -1,62 +1,115 @@
 /**
  * apps/frontend/lib/useMastery.ts
  *
- * SWR hooks for mastery data.
+ * Zustand hooks for mastery data.
  * Provides auto-revalidation (refreshes after quiz answers).
  */
 
 "use client";
 
-import useSWR, { mutate } from "swr";
+import { create } from "zustand";
+import { useEffect } from "react";
 import { getMastery, getMasterySummary } from "./api";
 import type { MasteryDoc, MasterySummary } from "@study-tutor/shared";
 
-const MASTERY_KEY = "/mastery";
-const SUMMARY_KEY = "/mastery/summary";
+interface MasteryState {
+  mastery: MasteryDoc[];
+  masteryLoading: boolean;
+  masteryError: any;
+  summary: MasterySummary;
+  summaryLoading: boolean;
+  summaryError: any;
+  masteryFetched: boolean;
+  summaryFetched: boolean;
+  fetchMastery: () => Promise<void>;
+  fetchSummary: () => Promise<void>;
+  invalidate: () => Promise<void>;
+}
+
+const defaultSummary: MasterySummary = {
+  overallPct: 0,
+  masteredCount: 0,
+  weakCount: 0,
+  totalCount: 0,
+  sessionsThisWeek: 0,
+  streakDays: 0,
+};
+
+export const useMasteryStore = create<MasteryState>((set, get) => ({
+  mastery: [],
+  masteryLoading: false,
+  masteryError: null,
+  masteryFetched: false,
+  
+  summary: defaultSummary,
+  summaryLoading: false,
+  summaryError: null,
+  summaryFetched: false,
+  
+  fetchMastery: async () => {
+    set({ masteryLoading: true, masteryError: null });
+    try {
+      const data = await getMastery();
+      set({ mastery: data, masteryLoading: false, masteryFetched: true });
+    } catch (err) {
+      set({ masteryError: err, masteryLoading: false, masteryFetched: true });
+    }
+  },
+  
+  fetchSummary: async () => {
+    set({ summaryLoading: true, summaryError: null });
+    try {
+      const data = await getMasterySummary();
+      set({ summary: data, summaryLoading: false, summaryFetched: true });
+    } catch (err) {
+      set({ summaryError: err, summaryLoading: false, summaryFetched: true });
+    }
+  },
+
+  invalidate: async () => {
+    await Promise.all([
+      get().fetchMastery(),
+      get().fetchSummary()
+    ]);
+  }
+}));
 
 // ── All concepts hook ─────────────────────────────────────────────────────────
 
 export function useMastery() {
-  const { data, error, isLoading, mutate: revalidate } = useSWR<MasteryDoc[]>(
-    MASTERY_KEY,
-    getMastery,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 10_000,
+  const { mastery, masteryLoading, masteryError, masteryFetched, fetchMastery } = useMasteryStore();
+  
+  useEffect(() => {
+    if (!masteryFetched && !masteryLoading) {
+      fetchMastery();
     }
-  );
+  }, [masteryFetched, masteryLoading, fetchMastery]);
 
   return {
-    mastery: data ?? [],
-    isLoading,
-    error,
-    revalidate,
+    mastery,
+    isLoading: masteryLoading,
+    error: masteryError,
+    revalidate: fetchMastery,
   };
 }
 
 // ── Summary hook ──────────────────────────────────────────────────────────────
 
 export function useMasterySummary() {
-  const { data, error, isLoading } = useSWR<MasterySummary>(
-    SUMMARY_KEY,
-    getMasterySummary,
-    {
-      revalidateOnFocus: true,
-      refreshInterval: 60_000, // refresh every minute
-    }
-  );
+  const { summary, summaryLoading, summaryError, fetchSummary } = useMasteryStore();
+  
+  useEffect(() => {
+    fetchSummary();
+    const interval = setInterval(() => {
+      fetchSummary();
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [fetchSummary]);
 
   return {
-    summary: data ?? {
-      overallPct: 0,
-      masteredCount: 0,
-      weakCount: 0,
-      totalCount: 0,
-      sessionsThisWeek: 0,
-      streakDays: 0,
-    },
-    isLoading,
-    error,
+    summary,
+    isLoading: summaryLoading,
+    error: summaryError,
   };
 }
 
@@ -64,10 +117,7 @@ export function useMasterySummary() {
 
 /** Call after a quiz answer to refresh mastery data globally. */
 export async function invalidateMastery() {
-  await Promise.all([
-    mutate(MASTERY_KEY),
-    mutate(SUMMARY_KEY),
-  ]);
+  await useMasteryStore.getState().invalidate();
 }
 
 /** Get color for a mastery score (used by bars, dots, etc.). */

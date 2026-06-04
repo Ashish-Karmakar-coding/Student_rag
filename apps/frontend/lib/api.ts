@@ -18,29 +18,35 @@ import type {
   QuizAnswerResponse,
 } from "@study-tutor/shared";
 
+import axios from "axios";
+
 const BASE = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:8000";
+
+const apiClient = axios.create({
+  baseURL: BASE,
+  withCredentials: true,
+});
+
+apiClient.interceptors.response.use(
+  (res) => res.data,
+  (err) => {
+    const message = err.response?.data?.error ?? err.message ?? "API Error";
+    return Promise.reject(new Error(message));
+  }
+);
 
 // ── Generic fetch wrapper ─────────────────────────────────────────────────────
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
+  const method = init?.method ?? "GET";
+  const data = init?.body ? JSON.parse(init.body as string) : undefined;
+  
+  return apiClient.request<any, T>({
+    url: path,
+    method,
+    data,
+    headers: init?.headers as any,
   });
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-    const message = (body as { error?: string }).error ?? `HTTP ${res.status}`;
-    throw new Error(message);
-  }
-
-  // Some responses have no body (204 No Content)
-  const text = await res.text();
-  return (text ? JSON.parse(text) : null) as T;
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
@@ -92,19 +98,17 @@ export async function uploadFiles(
   const form = new FormData();
   files.forEach((f) => form.append("files", f));
 
-  const res = await fetch(`${BASE}/upload`, {
-    method: "POST",
-    credentials: "include",
-    body: form,
-    // Don't set Content-Type — browser sets it with boundary for multipart
-  });
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-    throw new Error((body as { error?: string }).error ?? `Upload failed`);
+  try {
+    const data = await apiClient.post<any, { jobId: string; fileCount: number; skipped: string[] }>("/upload", form, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return data;
+  } catch (err: any) {
+    const message = err.response?.data?.error ?? err.message ?? "Upload failed";
+    throw new Error(message);
   }
-
-  return res.json() as Promise<{ jobId: string; fileCount: number; skipped: string[] }>;
 }
 
 export function getIngestStatus(jobId: string): Promise<IngestStatusResponse> {

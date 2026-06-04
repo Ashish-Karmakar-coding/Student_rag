@@ -4,6 +4,7 @@ import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import axios from "axios";
 import {
   Brain, Zap, BookOpen, BarChart3, MessageSquare,
   ChevronRight, Upload, Sparkles, GitBranch, Lock,
@@ -78,7 +79,7 @@ export default function LandingPage() {
   useEffect(() => {
     if (status === "authenticated" && session && !synced) {
       // Sync with backend
-      fetch("/api/sync-user", { method: "POST" })
+      axios.post("/api/sync-user")
         .then(() => setSynced(true))
         .then(() => {
           if (session.user && "hasFiles" in session.user) {

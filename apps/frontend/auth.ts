@@ -22,6 +22,7 @@ declare module "next-auth" {
   }
 }
 
+// @ts-ignore
 declare module "next-auth/jwt" {
   interface JWT {
     githubId?: string;
@@ -53,9 +54,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
 
     async session({ session, token }) {
-      session.user.githubId = token.githubId ?? "";
-      session.user.login = token.login ?? session.user.name ?? "";
-      session.user.avatarUrl = token.avatarUrl ?? session.user.image ?? "";
+      session.user.githubId = (token.githubId as string) ?? "";
+      session.user.login = (token.login as string) ?? session.user.name ?? "";
+      session.user.avatarUrl = (token.avatarUrl as string) ?? session.user.image ?? "";
       session.user.email = token.email ?? "";
       return session;
     },

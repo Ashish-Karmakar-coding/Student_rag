@@ -89,8 +89,21 @@ function buildSparseRanks(
   const engine = BM25();
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
   engine.defineConfig({ fldWeights: { text: 1 } });
+  // Custom prep task to tokenize and lemmatize using wink-nlp
+  const prepTask = (text: string) => {
+    const tokens: string[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    nlp.readDoc(text)
+      .tokens()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((t: any) => t.out(its.type) === "word" && !t.out(its.stopWordFlag))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .each((t: any) => tokens.push(t.out(its.lemma) === "" ? t.out(its.normal) : t.out(its.lemma)));
+    return tokens;
+  };
+
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-  engine.definePrepTasks([its.normal]);
+  engine.definePrepTasks([prepTask]);
 
   candidates.forEach((match, idx) => {
     const text = (match.metadata?.["text"] as string | undefined) ?? "";
