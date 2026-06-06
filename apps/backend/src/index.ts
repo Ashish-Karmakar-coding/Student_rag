@@ -17,14 +17,14 @@ import { env, isDev } from "./config.js";
 import { connectDB, disconnectDB } from "./database.js";
 
 // ── Route imports ─────────────────────────────────────────────────────────────
-import { authRoutes }     from "./routes/auth.js";
+import { authRoutes } from "./routes/auth.js";
 import { settingsRoutes } from "./routes/settings.js";
-import { ingestRoutes }   from "./routes/ingest.js";
-import { chatRoutes }     from "./routes/chat.js";
-import { quizRoutes }     from "./routes/quiz.js";
-import { masteryRoutes }  from "./routes/mastery.js";
-import { sessionRoutes }  from "./routes/sessions.js";
-import { healthRoutes }   from "./routes/health.js";
+import { ingestRoutes } from "./routes/ingest.js";
+import { chatRoutes } from "./routes/chat.js";
+import { quizRoutes } from "./routes/quiz.js";
+import { masteryRoutes } from "./routes/mastery.js";
+import { sessionRoutes } from "./routes/sessions.js";
+import { healthRoutes } from "./routes/health.js";
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
@@ -62,14 +62,14 @@ app.get("/", (c) =>
 
 // ── Route groups ──────────────────────────────────────────────────────────────
 
-app.route("/auth",      authRoutes);
-app.route("/settings",  settingsRoutes);
-app.route("/",          ingestRoutes);   // /upload, /ingest-status/:jobId
-app.route("/",          chatRoutes);     // /chat
-app.route("/quiz",      quizRoutes);
-app.route("/mastery",   masteryRoutes);
-app.route("/sessions",  sessionRoutes);
-app.route("/health",    healthRoutes);
+app.route("/auth", authRoutes);
+app.route("/settings", settingsRoutes);
+app.route("/", ingestRoutes);   // /upload, /ingest-status/:jobId
+app.route("/", chatRoutes);     // /chat
+app.route("/quiz", quizRoutes);
+app.route("/mastery", masteryRoutes);
+app.route("/sessions", sessionRoutes);
+app.route("/health", healthRoutes);
 
 // ── 404 fallback ──────────────────────────────────────────────────────────────
 app.notFound((c) =>

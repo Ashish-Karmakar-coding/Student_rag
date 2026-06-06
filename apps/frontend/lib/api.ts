@@ -40,7 +40,7 @@ apiClient.interceptors.response.use(
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const method = init?.method ?? "GET";
   const data = init?.body ? JSON.parse(init.body as string) : undefined;
-  
+
   return apiClient.request<any, T>({
     url: path,
     method,

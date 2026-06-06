@@ -44,10 +44,10 @@ export async function POST(): Promise<NextResponse> {
 
     // POST to the backend
     console.log("[sync-user] Sending token to backend:", token.substring(0, 10) + "...");
-    
+
     let backendRes: AxiosResponse<{ ok: boolean }>;
     try {
-      backendRes = await axios.post<{ ok: boolean }>(`${API_URL}/auth/sync`, {
+      backendRes = await axios.post<{ ok: boolean }>(`http://127.0.0.1:8000/auth/sync`, {
         githubId, login, avatarUrl, email: email ?? null
       }, {
         headers: {
@@ -66,7 +66,7 @@ export async function POST(): Promise<NextResponse> {
 
     // Mirror the backend's Set-Cookie header (access_token)
     const response = NextResponse.json(data);
-    
+
     // axios stores headers in lowercase
     const setCookie = backendRes.headers["set-cookie"];
     if (setCookie) {
