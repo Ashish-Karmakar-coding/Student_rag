@@ -8,9 +8,10 @@ StudyTutor is a full-stack TypeScript application that acts as an adaptive AI tu
 
 **Core Stack:**
 - **Frontend:** Next.js 14 (App Router), Tailwind CSS, NextAuth v5 (GitHub OAuth), Zustand, SWR
-- **Backend:** Hono (Node.js 20), LangGraph.js, Mongoose, Zod
-- **Databases:** MongoDB (state, jobs, mastery), Pinecone (vector DB)
-- **AI/LLM:** Local (Ollama) or Cloud (OpenAI, Anthropic). Embeddings via `nomic-embed-text` or `text-embedding-3-small`.
+- **Backend:** Hono embedded as Next.js API routes, LangGraph.js, Mongoose, Zod
+- **Deployment:** Vercel (serverless functions)
+- **Databases:** MongoDB Atlas (state, jobs, mastery), Pinecone (vector DB)
+- **AI/LLM:** Local (Ollama - dev only) or Cloud (OpenAI, Anthropic). Embeddings via `nomic-embed-text` or `text-embedding-3-small`.
 
 ## 🏗 Architecture & Project Structure
 The project is a monorepo managed with `pnpm` workspaces:
@@ -18,11 +19,24 @@ The project is a monorepo managed with `pnpm` workspaces:
 ```text
 study-tutor/
 ├── apps/
-│   ├── backend/    # Hono API. Handles RAG, LLM orchestration, Graph, and DB logic.
-│   └── frontend/   # Next.js 14 UI. Handles auth UI, chat interfaces, and dashboard.
+│   ├── backend/              # Original Hono backend (source of truth)
+│   └── frontend/
+│       ├── app/
+│       │   ├── api/
+│       │   │   └── [...backend]/route.ts  # Hono backend mounted as Next.js API routes
+│       │   └── (app)/        # UI routes
+│       └── lib/
+│           └── backend-src/  # Copy of backend source for Vercel deployment
 └── packages/
-    └── shared/     # Zod schemas, shared types. Zero runtime dependencies.
+    └── shared/               # Zod schemas, shared types
 ```
+
+**Deployment Architecture:**
+- For **Vercel deployment**: The Hono backend runs as Next.js API routes at `/api/*`
+- Backend source is copied to `apps/frontend/lib/backend-src/` for serverless compatibility
+- All routes are accessible via the same domain (no CORS needed)
+- MongoDB connection is cached across serverless function invocations
+- API keys are encrypted (AES-256-GCM) and stored in MongoDB, not OS keychain
 
 ## ✨ Key Features & Workflows
 
@@ -51,7 +65,7 @@ Mastery scores per concept dictate the tutor's behavior. It is evaluated via:
 ### 4. Authentication & Security
 - Uses NextAuth v5 via GitHub OAuth.
 - Frontend mints the session and mirrors it to the backend via a secure, HTTP-only cookie. Both apps share the `NEXTAUTH_SECRET` to verify signatures.
-- **API Keys:** User LLM keys (OpenAI, Anthropic) are never stored in plain text in MongoDB. They are stored securely in the OS keychain using `keytar`.
+- **API Keys:** User LLM keys (OpenAI, Anthropic) are encrypted using AES-256-GCM with `APP_SECRET` and stored in MongoDB. This is serverless-compatible (no OS keychain dependency).
 
 ## 🖥 UI / Frontend Details (`apps/frontend/app/`)
 - **`/(app)/dashboard`**: Main user hub. Visualizes mastery statistics, current streaks, and concept progress bars.
@@ -63,26 +77,54 @@ Mastery scores per concept dictate the tutor's behavior. It is evaluated via:
 
 ## 🚀 Common Commands
 
+### Local Development
 ```bash
 # Install dependencies
 pnpm install
 
-# Start development servers (frontend + backend)
+# Start frontend with integrated backend
+cd apps/frontend
 pnpm dev
 
-# Build for production
+# The app runs at http://localhost:3000
+# Backend API is available at http://localhost:3000/api
+```
+
+### Production Build
+```bash
+# Build for Vercel deployment
+cd apps/frontend
 pnpm build
 
-# Run unit tests (backend)
-pnpm test
+# Or from root
+pnpm build
+```
 
+### Testing & Type Checking
+```bash
 # Type-check everything
 pnpm type-check
+
+# Run unit tests (backend)
+cd apps/backend
+pnpm test
 ```
+
+### Deployment
+See [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) for complete deployment instructions.
 
 ## 🛠 Guidelines for AI Agents modifying code
 1. **Types & Schemas:** Always define and use `zod` schemas in `packages/shared` when creating contracts between frontend and backend.
-2. **Environment Variables:** Be mindful of `.env` limits. `APP_SECRET` and `NEXTAUTH_SECRET` must match.
-3. **Database Operations:** Use Mongoose models in `apps/backend/src/models/` for persistent non-vector data.
+2. **Environment Variables:** Be mindful of `.env` limits. `APP_SECRET` and `NEXTAUTH_SECRET` must match and be at least 32 characters.
+3. **Database Operations:** Use Mongoose models in `apps/backend/src/models/` for persistent non-vector data. MongoDB connection is cached for serverless.
 4. **LLM Agnosticism:** Always use the abstract provider interfaces in `apps/backend/src/providers/` so code remains compatible with Ollama, OpenAI, and Anthropic.
 5. **Streaming UI:** UI modifications in the chat component should handle React Server Components and readable stream SSE hooks.
+6. **Serverless Constraints:** Backend code must be stateless. No file system writes (except `/tmp`), no long-running processes, 60s function timeout max.
+7. **Backend Source Sync:** When modifying backend code in `apps/backend/src/`, remember to sync changes to `apps/frontend/lib/backend-src/` for Vercel deployment.
+
+## 📦 Deployment Notes
+- **Vercel**: The primary deployment target. Backend runs as Next.js API routes.
+- **MongoDB**: Use MongoDB Atlas (serverless-optimized connection pooling).
+- **Pinecone**: Use Serverless index for auto-scaling.
+- **API Keys**: Stored encrypted in MongoDB, not in environment variables.
+- **Secrets Management**: All secrets via Vercel Environment Variables dashboard.

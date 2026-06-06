@@ -11,8 +11,8 @@
  */
 
 import crypto from "crypto";
-import { env } from "../config.js";
-import { User } from "../models/User.js";
+import { env } from "../config";
+import { User } from "../models/User";
 
 // ── Encryption utilities ──────────────────────────────────────────────────────
 

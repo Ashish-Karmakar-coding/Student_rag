@@ -7,7 +7,7 @@
  */
 
 import mongoose from "mongoose";
-import { env } from "./config.js";
+import { env } from "./config";
 
 // ── Connection caching for serverless ─────────────────────────────────────────
 

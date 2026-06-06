@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2017",
+    "target": "ES2020",
     "lib": [
       "dom",
       "dom.iterable",
@@ -18,7 +18,7 @@
     ],
     "paths": {
       "@/*": [
-        "./app/*"
+        "./*"
       ],
       "@study-tutor/shared": [
         "../../packages/shared/src/index.ts"
@@ -40,6 +40,8 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "**/*.test.ts",
+    "**/*.spec.ts"
   ]
 }

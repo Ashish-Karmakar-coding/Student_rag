@@ -16,7 +16,8 @@ import { auth } from "../../../auth";
 import { SignJWT } from "jose";
 import axios, { AxiosResponse } from "axios";
 
-const API_URL = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:8000";
+// In Vercel deployment, backend runs as /api routes in the same app
+const API_URL = process.env["NEXT_PUBLIC_API_URL"] ?? "/api";
 const NEXTAUTH_SECRET = new TextEncoder().encode(process.env["NEXTAUTH_SECRET"]!);
 
 export async function POST(): Promise<NextResponse> {
@@ -47,7 +48,12 @@ export async function POST(): Promise<NextResponse> {
 
     let backendRes: AxiosResponse<{ ok: boolean }>;
     try {
-      backendRes = await axios.post<{ ok: boolean }>(`http://127.0.0.1:8000/auth/sync`, {
+      // Determine full URL for internal API call
+      const syncUrl = API_URL.startsWith('http')
+        ? `${API_URL}/auth/sync`
+        : `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}${API_URL}/auth/sync`;
+
+      backendRes = await axios.post<{ ok: boolean }>(syncUrl, {
         githubId, login, avatarUrl, email: email ?? null
       }, {
         headers: {

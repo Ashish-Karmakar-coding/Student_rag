@@ -24,7 +24,7 @@ import { useState, useRef, useCallback } from "react";
 import { useAppStore } from "./store";
 import type { SSEEvent, Source } from "@study-tutor/shared";
 
-const BASE = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:8000";
+const BASE = process.env["NEXT_PUBLIC_API_URL"] ?? "/api";
 
 interface UseStreamOptions {
   onDone?: (text: string, conceptTags: string[], sources: Source[]) => void;

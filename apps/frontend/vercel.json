@@ -1,0 +1,15 @@
+{
+  "buildCommand": "pnpm build",
+  "framework": "nextjs",
+  "installCommand": "cd ../.. && pnpm install",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "/api"
+  },
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 60
+    }
+  },
+  "regions": ["iad1"],
+  "framework": "nextjs"
+}
