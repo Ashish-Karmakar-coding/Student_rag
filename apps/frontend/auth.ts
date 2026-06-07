@@ -4,6 +4,13 @@
  * NextAuth v5 configuration (Auth.js).
  * Exports: { handlers, auth, signIn, signOut }
  * Used by: app/api/auth/[...nextauth]/route.ts and middleware.ts
+ *
+ * GitHub OAuth App callback URL (registered in GitHub settings):
+ *   https://kairo.ashishkarmakar.in/api/auth/github/callback
+ *
+ * That URL is handled by:
+ *   app/api/auth/github/callback/route.ts
+ * which rewrites the request to /api/auth/callback/github for NextAuth to process.
  */
 
 import NextAuth from "next-auth";
@@ -31,19 +38,31 @@ declare module "next-auth/jwt" {
   }
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  // NextAuth v5 reads AUTH_SECRET automatically, but we also pass it
-  // explicitly so it works even if only NEXTAUTH_SECRET is set in Vercel.
-  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+// AUTH_SECRET must be set in Vercel environment variables.
+// NextAuth v5 will throw a Configuration error if it is missing.
+const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 
-  // Required when deploying behind a proxy (Vercel) so NextAuth trusts the
-  // x-forwarded-host header and builds internal URLs correctly.
+if (!secret) {
+  // This will appear in Vercel deployment logs — helps diagnose ?error=Configuration
+  console.error(
+    "[auth] FATAL: AUTH_SECRET is not set. " +
+    "Add AUTH_SECRET to your Vercel environment variables and redeploy."
+  );
+}
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret,
+
+  // Required when running behind Vercel's reverse proxy — lets NextAuth
+  // trust x-forwarded-host and construct correct internal URLs.
   trustHost: true,
 
   providers: [
     GitHub({
-      clientId: process.env["GITHUB_CLIENT_ID"]!,
-      clientSecret: process.env["GITHUB_CLIENT_SECRET"]!,
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      // Tell GitHub exactly which URL to redirect back to after auth.
+      // Must match the "Authorization callback URL" in your GitHub OAuth App settings.
       authorization: {
         params: {
           redirect_uri: "https://kairo.ashishkarmakar.in/api/auth/github/callback",
@@ -69,14 +88,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       session.user.githubId = (token.githubId as string) ?? "";
       session.user.login = (token.login as string) ?? session.user.name ?? "";
-      session.user.avatarUrl = (token.avatarUrl as string) ?? session.user.image ?? "";
+      session.user.avatarUrl =
+        (token.avatarUrl as string) ?? session.user.image ?? "";
       session.user.email = token.email ?? "";
       return session;
     },
   },
 
   pages: {
-    signIn: "/",    // redirect to landing page
+    signIn: "/",
     error: "/",
   },
 });
