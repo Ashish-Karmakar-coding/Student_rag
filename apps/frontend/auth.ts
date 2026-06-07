@@ -32,13 +32,21 @@ declare module "next-auth/jwt" {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // NextAuth v5 reads AUTH_SECRET automatically, but we also pass it
+  // explicitly so it works even if only NEXTAUTH_SECRET is set in Vercel.
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+
+  // Required when deploying behind a proxy (Vercel) so NextAuth trusts the
+  // x-forwarded-host header and builds internal URLs correctly.
+  trustHost: true,
+
   providers: [
     GitHub({
       clientId: process.env["GITHUB_CLIENT_ID"]!,
       clientSecret: process.env["GITHUB_CLIENT_SECRET"]!,
       authorization: {
         params: {
-          redirect_uri: `${process.env.NEXTAUTH_URL}/api/auth/github/callback`,
+          redirect_uri: "https://kairo.ashishkarmakar.in/api/auth/github/callback",
         },
       },
     }),
