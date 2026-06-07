@@ -123,8 +123,177 @@ See [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) for complete deployment instr
 7. **Backend Source Sync:** When modifying backend code in `apps/backend/src/`, remember to sync changes to `apps/frontend/lib/backend-src/` for Vercel deployment.
 
 ## 📦 Deployment Notes
-- **Vercel**: The primary deployment target. Backend runs as Next.js API routes.
-- **MongoDB**: Use MongoDB Atlas (serverless-optimized connection pooling).
-- **Pinecone**: Use Serverless index for auto-scaling.
-- **API Keys**: Stored encrypted in MongoDB, not in environment variables.
-- **Secrets Management**: All secrets via Vercel Environment Variables dashboard.
+
+### Vercel Deployment (Production)
+
+**Primary deployment target**: Vercel serverless platform
+
+#### Architecture Changes for Vercel
+- Backend runs as Next.js API routes (not separate server)
+- All routes accessible at `/api/*` (e.g., `/api/chat`, `/api/upload`, `/api/settings`)
+- Single unified deployment (no CORS, same domain)
+- Serverless functions with 60-second timeout
+- MongoDB connection caching across invocations
+
+#### Required Configuration
+
+**Vercel Project Settings:**
+- **Root Directory**: `apps/frontend`
+- **Framework**: Next.js
+- **Build Command**: `pnpm build`
+- **Install Command**: `pnpm install --filter=@study-tutor/frontend...`
+- **Output Directory**: `.next` (default)
+
+**Environment Variables** (Set in Vercel Dashboard):
+
+**Critical (Required):**
+```bash
+NEXTAUTH_SECRET=<64-char-hex-string>        # Generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+APP_SECRET=<64-char-hex-string>             # Generate: same command
+NEXTAUTH_URL=https://your-app.vercel.app    # Your actual Vercel domain
+GITHUB_CLIENT_ID=<from-github-oauth-app>
+GITHUB_CLIENT_SECRET=<from-github-oauth-app>
+MONGODB_URI=mongodb+srv://...               # MongoDB Atlas connection string
+PINECONE_API_KEY=<your-pinecone-api-key>
+PINECONE_INDEX_NAME=study-tutor             # Or your index name
+```
+
+**Optional (Enhanced Features):**
+```bash
+COHERE_API_KEY=<cohere-api-key>                    # Enables search reranking
+KEYTAR_FALLBACK_OPENAI_KEY=<shared-openai-key>     # Fallback OpenAI access
+KEYTAR_FALLBACK_ANTHROPIC_KEY=<shared-anthropic>   # Fallback Claude access
+NODE_ENV=production
+NEXT_PUBLIC_API_URL=/api
+```
+
+**Important Notes:**
+- ⚠️ Enter values WITHOUT quotes in Vercel dashboard
+- ⚠️ NEXTAUTH_SECRET must be at least 32 characters (64-char hex recommended)
+- ⚠️ APP_SECRET is used to encrypt user API keys in MongoDB
+- ⚠️ Both secrets can be generated with: `openssl rand -hex 32`
+
+#### GitHub OAuth Configuration
+
+**Required Settings** (at https://github.com/settings/developers):
+- **Homepage URL**: `https://your-app.vercel.app`
+- **Authorization callback URL**: `https://your-app.vercel.app/api/auth/callback/github`
+
+**Note**: Use your actual Vercel production domain, not preview URLs.
+
+#### External Services Setup
+
+**MongoDB Atlas:**
+- Create M0 (free tier) cluster
+- Whitelist all IPs: `0.0.0.0/0` (for Vercel serverless)
+- Create database user with read/write permissions
+- Get connection string from "Connect → Drivers"
+
+**Pinecone:**
+- Create Serverless index
+- Set dimensions: 768 (nomic-embed-text) or 1536 (OpenAI embeddings)
+- Note: Choose based on which embedding model you'll use
+- Copy API key from dashboard
+
+#### Deployment Process
+
+**Initial Setup:**
+1. Fork/clone repository to GitHub
+2. Connect repository to Vercel
+3. Set Root Directory to `apps/frontend`
+4. Add all environment variables
+5. Deploy
+
+**Subsequent Deployments:**
+- Automatic on every push to `main` branch
+- Manual via "Redeploy" button in Vercel dashboard
+- Preview deployments for pull requests
+
+#### Deployment Verification
+
+After deployment, verify:
+1. Visit `/` - Should show landing page
+2. Visit `/api/` - Should return JSON service info
+3. Visit `/api/auth/providers` - Should return GitHub provider config
+4. Test GitHub sign-in flow
+5. Check Vercel logs for any runtime errors
+
+#### Troubleshooting
+
+**Common Issues:**
+
+1. **"No Next.js version detected"**
+   - Solution: Ensure Root Directory is set to `apps/frontend`
+
+2. **"Module not found: './types.js'"**
+   - Solution: Ensure `packages/shared/src/index.ts` has NO `.js` extensions
+
+3. **"MissingSecret" error**
+   - Solution: Set `NEXTAUTH_SECRET` in Vercel environment variables
+
+4. **Sign-in redirects back to same page**
+   - Solution: Verify GitHub OAuth callback URL matches exactly
+   - Verify `NEXTAUTH_URL` matches your Vercel domain
+
+5. **401 Unauthorized on /api/sync-user**
+   - Solution: Ensure `NEXTAUTH_SECRET` is set without quotes
+   - Regenerate both secrets if needed
+
+**Debug Tools:**
+- Vercel Logs: `https://vercel.com/<team>/<project>/logs`
+- Browser Console: Check for auth errors
+- Test endpoint: `GET /api/health` for backend status
+
+**Documentation Files:**
+- [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) - Complete deployment guide
+- [DEPLOYMENT_SUMMARY.md](./DEPLOYMENT_SUMMARY.md) - All changes made for Vercel
+- [VERCEL_ENV_SETUP.md](./VERCEL_ENV_SETUP.md) - Environment variables reference
+- [VERCEL_FIX.md](./VERCEL_FIX.md) - Troubleshooting guide
+
+#### Key Technical Changes for Serverless
+
+**1. Secret Storage:**
+- Replaced `keytar` (OS keychain) with AES-256-GCM encryption
+- User API keys encrypted with `APP_SECRET` before MongoDB storage
+- Location: `apps/frontend/lib/backend-src/providers/keychain.ts`
+
+**2. MongoDB Connection:**
+- Implemented connection caching for serverless
+- Reduced `minPoolSize` to 1 for faster cold starts
+- Added `maxIdleTimeMS: 60000` to keep connections alive
+- Location: `apps/frontend/lib/backend-src/database.ts`
+
+**3. Environment Configuration:**
+- Lazy validation (only validates when accessed, not at build time)
+- Skips validation during Next.js build phase
+- Location: `apps/frontend/lib/backend-src/config.ts`
+
+**4. Import Resolution:**
+- Removed all `.js` extensions from imports
+- Changed to `moduleResolution: "Bundler"` in tsconfig
+- Compatible with Next.js webpack bundler
+
+**5. API Route Integration:**
+- Hono app mounted at `/app/api/[...backend]/route.ts`
+- Uses `hono/vercel` adapter for Next.js compatibility
+- All backend routes accessible at `/api/*`
+- Dynamic route config: `export const dynamic = 'force-dynamic'`
+
+#### Performance Considerations
+
+**Cold Start Optimization:**
+- First request after idle: ~1-3 seconds
+- Subsequent requests: <100ms
+- MongoDB connection cached across invocations
+- Consider upgrading to Vercel Pro for better cold start performance
+
+**Function Limits:**
+- Timeout: 60 seconds (hobby tier), 300s (pro tier)
+- Memory: 1024 MB default
+- Payload: 4.5 MB for request/response
+- File uploads: Limited by payload size
+
+**Scaling:**
+- Auto-scales with traffic
+- No manual configuration needed
+- Concurrent function limit based on Vercel plan

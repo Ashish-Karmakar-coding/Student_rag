@@ -37,11 +37,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientId: process.env["GITHUB_CLIENT_ID"]!,
       clientSecret: process.env["GITHUB_CLIENT_SECRET"]!,
       // Add custom callback URL
-      authorization: {
-        params: {
-          redirect_uri: "https://student-rag-frontend.vercel.app/api/auth/github/callback"
-        },
-      }
+      // authorization: {
+      //   params: {
+      //     redirect_uri: "https://student-rag-frontend.vercel.app/api/auth/github/callback"
+      //   },
+      // }
     }),
   ],
 
