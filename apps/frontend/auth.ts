@@ -2,12 +2,15 @@
  * apps/frontend/auth.ts
  *
  * NextAuth v5 (Auth.js) configuration.
- * Exports: { handlers, auth, signIn, signOut }
  *
- * GitHub OAuth App — Authorization callback URL must be set to:
- *   https://kairo.ashishkarmakar.in/api/auth/callback/github
+ * GITHUB OAUTH APP SETTINGS (github.com → Settings → Developer Settings → OAuth Apps):
+ *   Authorization callback URL → https://kairo.ashishkarmakar.in/api/auth/callback/github
  *
- * This is NextAuth's native callback path. No rewrites, no custom handlers.
+ * VERCEL ENV VARS REQUIRED:
+ *   AUTH_SECRET      → any 32-char random string
+ *   GITHUB_CLIENT_ID → from the GitHub OAuth App
+ *   GITHUB_CLIENT_SECRET → from the GitHub OAuth App
+ *   NEXTAUTH_URL     → https://kairo.ashishkarmakar.in   ← CRITICAL
  */
 
 import NextAuth from "next-auth";
@@ -35,28 +38,42 @@ declare module "next-auth/jwt" {
   }
 }
 
-if (!process.env.AUTH_SECRET && !process.env.NEXTAUTH_SECRET) {
-  console.error(
-    "[auth] FATAL: AUTH_SECRET is not set. " +
-      "Add AUTH_SECRET to your Vercel environment variables and redeploy."
-  );
+const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+if (!secret) {
+  console.error("[auth] FATAL: AUTH_SECRET is not set in environment variables.");
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+// The base URL of this app.
+// On Vercel production this MUST be https://kairo.ashishkarmakar.in
+// On local dev this is http://localhost:3000
+// Set NEXTAUTH_URL in Vercel → Settings → Environment Variables.
+const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
-  // Required on Vercel — trusts x-forwarded-host so NextAuth builds correct
-  // internal URLs and sets cookies for the right domain automatically.
+// The exact URL NextAuth will use as the OAuth callback.
+// THIS MUST MATCH the "Authorization callback URL" in your GitHub OAuth App.
+// Go to: github.com → Settings → Developer settings → OAuth Apps → your app → Edit
+const callbackUrl = `${baseUrl}/api/auth/callback/github`;
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret,
+
+  // Required on Vercel — trusts x-forwarded-host so NextAuth
+  // correctly determines the domain for cookies and redirects.
   trustHost: true,
 
   providers: [
     GitHub({
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-      // DO NOT override redirect_uri here.
-      // With trustHost:true, NextAuth computes it from the incoming request
-      // host header → https://kairo.ashishkarmakar.in/api/auth/callback/github
-      // That URL must be registered as the callback in your GitHub OAuth App.
+      // Explicitly set the redirect_uri so there is zero ambiguity.
+      // NextAuth will send exactly this URL to GitHub's authorization endpoint.
+      // GitHub will redirect back to this URL after the user authorizes.
+      // This MUST match the "Authorization callback URL" in your GitHub OAuth App.
+      authorization: {
+        params: {
+          redirect_uri: callbackUrl,
+        },
+      },
     }),
   ],
 
@@ -86,7 +103,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
   pages: {
     signIn: "/",
-    // error page intentionally left as default (/api/auth/error)
-    // so you can see the actual error name if something goes wrong
   },
 });
