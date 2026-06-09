@@ -42,12 +42,32 @@ declare module "next-auth/jwt" {
 // including the error page, producing a 500 instead of a helpful error message.
 // NextAuth itself handles missing secrets with its own Configuration error.
 const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+
+// Log initialization diagnostics (presence and lengths only, to protect secrets)
+console.log("[auth] NextAuth Initialization Diagnostics:", {
+  hasSecret: !!secret,
+  secretLength: secret?.length ?? 0,
+  hasNextauthUrl: !!process.env.NEXTAUTH_URL,
+  nextauthUrl: process.env.NEXTAUTH_URL ?? "not set",
+  hasPublicBaseUrl: !!process.env.NEXT_PUBLIC_BASE_URL,
+  publicBaseUrl: process.env.NEXT_PUBLIC_BASE_URL ?? "not set",
+  hasGithubClientId: !!process.env.GITHUB_CLIENT_ID,
+  githubClientIdLength: process.env.GITHUB_CLIENT_ID?.length ?? 0,
+  hasGithubClientSecret: !!process.env.GITHUB_CLIENT_SECRET,
+  githubClientSecretLength: process.env.GITHUB_CLIENT_SECRET?.length ?? 0,
+});
+
 if (!secret) {
   console.error(
-    "\n[auth] ⛔ AUTH_SECRET is not set!\n" +
-    "  → Vercel: Project → Settings → Environment Variables\n" +
-    "  → Add AUTH_SECRET = b65407f311c91ff30bf8686d061141bc214fa76c4e432c7a022dfa6b63d667c4\n" +
-    "  → Then REDEPLOY\n"
+    "[auth] ⛔ AUTH_SECRET is missing! NextAuth v5 will fail in production.\n" +
+    "Please add AUTH_SECRET to your Vercel Environment Variables and redeploy."
+  );
+}
+
+if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
+  console.error(
+    "[auth] ⛔ GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET is missing!\n" +
+    "Please ensure both are set in your Vercel Environment Variables."
   );
 }
 
@@ -61,6 +81,7 @@ const BASE_URL = (
 
 // Must match "Authorization callback URL" in GitHub OAuth App settings exactly.
 const GITHUB_CALLBACK_URL = `${BASE_URL}/api/auth/github/callback`;
+
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret,
