@@ -3,18 +3,22 @@
  *
  * NextAuth v5 (Auth.js) configuration.
  *
- * GITHUB OAUTH APP SETTINGS (github.com → Settings → Developer Settings → OAuth Apps):
- *   Authorization callback URL → https://kairo.ashishkarmakar.in/api/auth/callback/github
+ * Uses a CUSTOM GitHub OAuth provider (not the built-in one) so we can
+ * explicitly set redirect_uri in BOTH the authorization request AND the
+ * token exchange request. This is the only way to reliably use a non-standard
+ * callback path (/api/auth/github/callback) with NextAuth v5.
  *
- * VERCEL ENV VARS REQUIRED:
- *   AUTH_SECRET      → any 32-char random string
- *   GITHUB_CLIENT_ID → from the GitHub OAuth App
- *   GITHUB_CLIENT_SECRET → from the GitHub OAuth App
- *   NEXTAUTH_URL     → https://kairo.ashishkarmakar.in   ← CRITICAL
+ * GitHub OAuth App must be configured with:
+ *   Authorization callback URL → https://kairo.ashishkarmakar.in/api/auth/github/callback
+ *
+ * Vercel env vars required:
+ *   NEXTAUTH_URL     → https://kairo.ashishkarmakar.in
+ *   AUTH_SECRET      → any 32+ char random string
+ *   GITHUB_CLIENT_ID → from GitHub OAuth App
+ *   GITHUB_CLIENT_SECRET → from GitHub OAuth App
  */
 
 import NextAuth from "next-auth";
-import GitHub from "next-auth/providers/github";
 
 declare module "next-auth" {
   interface Session {
@@ -40,41 +44,104 @@ declare module "next-auth/jwt" {
 
 const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 if (!secret) {
-  console.error("[auth] FATAL: AUTH_SECRET is not set in environment variables.");
+  console.error("[auth] FATAL: AUTH_SECRET is not set in Vercel environment variables.");
 }
 
-// The base URL of this app.
-// On Vercel production this MUST be https://kairo.ashishkarmakar.in
-// On local dev this is http://localhost:3000
-// Set NEXTAUTH_URL in Vercel → Settings → Environment Variables.
-const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+// Production: https://kairo.ashishkarmakar.in
+// Local dev:  http://localhost:3000
+// Set NEXTAUTH_URL in Vercel → Settings → Environment Variables
+const BASE_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
-// The exact URL NextAuth will use as the OAuth callback.
-// THIS MUST MATCH the "Authorization callback URL" in your GitHub OAuth App.
-// Go to: github.com → Settings → Developer settings → OAuth Apps → your app → Edit
-const callbackUrl = `${baseUrl}/api/auth/callback/github`;
+// The exact callback URL registered in the GitHub OAuth App.
+// GitHub → Settings → Developer Settings → OAuth Apps → your app
+// Authorization callback URL = this value exactly.
+const GITHUB_CALLBACK_URL = `${BASE_URL}/api/auth/github/callback`;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret,
 
-  // Required on Vercel — trusts x-forwarded-host so NextAuth
-  // correctly determines the domain for cookies and redirects.
+  // Required on Vercel so NextAuth trusts the x-forwarded-host header
+  // and sets cookies for the correct domain.
   trustHost: true,
 
   providers: [
-    GitHub({
-      clientId: process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-      // Explicitly set the redirect_uri so there is zero ambiguity.
-      // NextAuth will send exactly this URL to GitHub's authorization endpoint.
-      // GitHub will redirect back to this URL after the user authorizes.
-      // This MUST match the "Authorization callback URL" in your GitHub OAuth App.
+    {
+      id: "github",
+      name: "GitHub",
+      type: "oauth" as const,
+
+      // Step 1: Send user to GitHub for authorization.
+      // redirect_uri MUST match the "Authorization callback URL" in GitHub OAuth App.
       authorization: {
+        url: "https://github.com/login/oauth/authorize",
         params: {
-          redirect_uri: callbackUrl,
+          scope: "read:user user:email",
+          redirect_uri: GITHUB_CALLBACK_URL,
         },
       },
-    }),
+
+      // Step 2: Exchange the code for an access token.
+      // We control redirect_uri explicitly here — this is the critical fix.
+      // Without this, NextAuth computes /api/auth/callback/github which doesn't
+      // match the GitHub OAuth App registration → token exchange fails.
+      token: {
+        url: "https://github.com/login/oauth/access_token",
+        async request(context: any) {
+          const { params, checks, provider } = context;
+          const body = new URLSearchParams({
+            client_id: provider.clientId!,
+            client_secret: provider.clientSecret!,
+            code: params.code!,
+            redirect_uri: GITHUB_CALLBACK_URL, // ← same as authorization
+            grant_type: "authorization_code",
+          });
+          // Include PKCE code verifier if present (NextAuth v5 enables PKCE by default)
+          if (checks?.code_verifier) {
+            body.set("code_verifier", checks.code_verifier);
+          }
+          const response = await fetch("https://github.com/login/oauth/access_token", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              Accept: "application/json",
+            },
+            body,
+          });
+          const tokens = await response.json();
+          return { tokens };
+        },
+      },
+
+      // Step 3: Fetch the authenticated user's profile from GitHub.
+      userinfo: {
+        url: "https://api.github.com/user",
+        async request(context: any) {
+          const { tokens } = context;
+          const response = await fetch("https://api.github.com/user", {
+            headers: {
+              Authorization: `Bearer ${tokens.access_token}`,
+              Accept: "application/vnd.github.v3+json",
+              "User-Agent": "StudyTutor/1.0",
+            },
+          });
+          return response.json();
+        },
+      },
+
+      // Step 4: Map the raw GitHub profile to NextAuth's normalized user object.
+      profile(profile: any) {
+        return {
+          id: profile.id.toString(),
+          name: profile.name ?? profile.login,
+          email: profile.email ?? null,
+          image: profile.avatar_url,
+        };
+      },
+
+      clientId: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      checks: ["pkce", "state"],
+    },
   ],
 
   session: { strategy: "jwt" },
