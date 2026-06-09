@@ -50,6 +50,13 @@ if (!secret) {
   );
 }
 
+// Base URL: production uses NEXT_PUBLIC_BASE_URL, local dev falls back to NEXTAUTH_URL.
+// This makes redirect_uri work correctly in both environments.
+const baseUrl =
+  process.env.NEXT_PUBLIC_BASE_URL ??
+  process.env.NEXTAUTH_URL ??
+  "http://localhost:3000";
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret,
 
@@ -62,10 +69,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
       // Tell GitHub exactly which URL to redirect back to after auth.
-      // Must match the "Authorization callback URL" in your GitHub OAuth App settings.
+      // Must match the "Authorization callback URL" in your GitHub OAuth App settings:
+      //   https://kairo.ashishkarmakar.in/api/auth/github/callback
       authorization: {
         params: {
-          redirect_uri: "https://kairo.ashishkarmakar.in/api/auth/github/callback",
+          redirect_uri: `${baseUrl}/api/auth/github/callback`,
         },
       },
     }),

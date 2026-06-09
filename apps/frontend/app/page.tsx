@@ -94,7 +94,10 @@ export default function LandingPage() {
 
   const handleSignIn = async () => {
     setIsSigningIn(true);
-    await signIn("github", { callbackUrl: "/" });
+    // After GitHub auth completes, NextAuth will redirect here.
+    // We send to /upload (new users) — authenticated users in /upload or /chat
+    // will be properly handled by the app's routing.
+    await signIn("github", { callbackUrl: "/upload" });
   };
 
   return (
