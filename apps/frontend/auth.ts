@@ -8,9 +8,9 @@
  * GitHub OAuth App callback URL (registered in GitHub settings):
  *   https://kairo.ashishkarmakar.in/api/auth/github/callback
  *
- * That URL is handled by:
- *   app/api/auth/github/callback/route.ts
- * which rewrites the request to /api/auth/callback/github for NextAuth to process.
+ * next.config.mjs rewrites that path to /api/auth/callback/github before
+ * any route handler runs, so NextAuth processes the callback correctly
+ * with all cookies preserved.
  */
 
 import NextAuth from "next-auth";
@@ -50,13 +50,6 @@ if (!secret) {
   );
 }
 
-// Base URL: production uses NEXT_PUBLIC_BASE_URL, local dev falls back to NEXTAUTH_URL.
-// This makes redirect_uri work correctly in both environments.
-const baseUrl =
-  process.env.NEXT_PUBLIC_BASE_URL ??
-  process.env.NEXTAUTH_URL ??
-  "http://localhost:3000";
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret,
 
@@ -68,12 +61,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     GitHub({
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-      // Tell GitHub exactly which URL to redirect back to after auth.
-      // Must match the "Authorization callback URL" in your GitHub OAuth App settings:
-      //   https://kairo.ashishkarmakar.in/api/auth/github/callback
+      // Explicitly tell GitHub which URL to redirect back to after auth.
+      // This MUST exactly match the "Authorization callback URL" in your
+      // GitHub OAuth App settings.
+      //
+      // next.config.mjs rewrites this path to /api/auth/callback/github
+      // before the Next.js router processes it.
       authorization: {
         params: {
-          redirect_uri: `${baseUrl}/api/auth/github/callback`,
+          redirect_uri: `${
+            process.env.NEXT_PUBLIC_BASE_URL ??
+            process.env.NEXTAUTH_URL ??
+            "http://localhost:3000"
+          }/api/auth/github/callback`,
         },
       },
     }),
@@ -104,7 +104,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
 
   pages: {
+    // signIn page — unauthenticated users land here
     signIn: "/",
-    error: "/",
+    // IMPORTANT: Do NOT set pages.error to "/" — that causes NextAuth errors
+    // (like ?error=Configuration) to silently redirect to the landing page,
+    // making it impossible to diagnose what's wrong. Let NextAuth use its
+    // built-in /api/auth/error page so you can see the actual error.
   },
 });
