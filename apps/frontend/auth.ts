@@ -1,16 +1,13 @@
 /**
  * apps/frontend/auth.ts
  *
- * NextAuth v5 configuration (Auth.js).
+ * NextAuth v5 (Auth.js) configuration.
  * Exports: { handlers, auth, signIn, signOut }
- * Used by: app/api/auth/[...nextauth]/route.ts and middleware.ts
  *
- * GitHub OAuth App callback URL (registered in GitHub settings):
- *   https://kairo.ashishkarmakar.in/api/auth/github/callback
+ * GitHub OAuth App — Authorization callback URL must be set to:
+ *   https://kairo.ashishkarmakar.in/api/auth/callback/github
  *
- * next.config.mjs rewrites that path to /api/auth/callback/github before
- * any route handler runs, so NextAuth processes the callback correctly
- * with all cookies preserved.
+ * This is NextAuth's native callback path. No rewrites, no custom handlers.
  */
 
 import NextAuth from "next-auth";
@@ -38,44 +35,28 @@ declare module "next-auth/jwt" {
   }
 }
 
-// AUTH_SECRET must be set in Vercel environment variables.
-// NextAuth v5 will throw a Configuration error if it is missing.
-const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
-
-if (!secret) {
-  // This will appear in Vercel deployment logs — helps diagnose ?error=Configuration
+if (!process.env.AUTH_SECRET && !process.env.NEXTAUTH_SECRET) {
   console.error(
     "[auth] FATAL: AUTH_SECRET is not set. " +
-    "Add AUTH_SECRET to your Vercel environment variables and redeploy."
+      "Add AUTH_SECRET to your Vercel environment variables and redeploy."
   );
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  secret,
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
 
-  // Required when running behind Vercel's reverse proxy — lets NextAuth
-  // trust x-forwarded-host and construct correct internal URLs.
+  // Required on Vercel — trusts x-forwarded-host so NextAuth builds correct
+  // internal URLs and sets cookies for the right domain automatically.
   trustHost: true,
 
   providers: [
     GitHub({
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-      // Explicitly tell GitHub which URL to redirect back to after auth.
-      // This MUST exactly match the "Authorization callback URL" in your
-      // GitHub OAuth App settings.
-      //
-      // next.config.mjs rewrites this path to /api/auth/callback/github
-      // before the Next.js router processes it.
-      authorization: {
-        params: {
-          redirect_uri: `${
-            process.env.NEXT_PUBLIC_BASE_URL ??
-            process.env.NEXTAUTH_URL ??
-            "http://localhost:3000"
-          }/api/auth/github/callback`,
-        },
-      },
+      // DO NOT override redirect_uri here.
+      // With trustHost:true, NextAuth computes it from the incoming request
+      // host header → https://kairo.ashishkarmakar.in/api/auth/callback/github
+      // That URL must be registered as the callback in your GitHub OAuth App.
     }),
   ],
 
@@ -104,11 +85,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
 
   pages: {
-    // signIn page — unauthenticated users land here
     signIn: "/",
-    // IMPORTANT: Do NOT set pages.error to "/" — that causes NextAuth errors
-    // (like ?error=Configuration) to silently redirect to the landing page,
-    // making it impossible to diagnose what's wrong. Let NextAuth use its
-    // built-in /api/auth/error page so you can see the actual error.
+    // error page intentionally left as default (/api/auth/error)
+    // so you can see the actual error name if something goes wrong
   },
 });
