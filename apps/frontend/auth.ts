@@ -3,18 +3,14 @@
  *
  * NextAuth v5 (Auth.js) configuration.
  *
- * Uses the built-in GitHub provider with a custom token.request override
- * so we can send the correct redirect_uri (/api/auth/github/callback) during
- * the token exchange — not the NextAuth-computed /api/auth/callback/github.
+ * VERCEL ENV VARS — all of these are required:
+ *   AUTH_SECRET          → random 32+ char string
+ *   NEXTAUTH_URL         → https://kairo.ashishkarmakar.in
+ *   GITHUB_CLIENT_ID     → from GitHub OAuth App
+ *   GITHUB_CLIENT_SECRET → from GitHub OAuth App
  *
- * GitHub OAuth App must be configured with:
- *   Authorization callback URL → https://kairo.ashishkarmakar.in/api/auth/github/callback
- *
- * Vercel env vars REQUIRED (without these, NextAuth returns 500):
- *   AUTH_SECRET      → run: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
- *   NEXTAUTH_URL     → https://kairo.ashishkarmakar.in
- *   GITHUB_CLIENT_ID → from GitHub OAuth App settings
- *   GITHUB_CLIENT_SECRET → from GitHub OAuth App settings
+ * GITHUB OAUTH APP — Authorization callback URL must be:
+ *   https://kairo.ashishkarmakar.in/api/auth/github/callback
  */
 
 import NextAuth from "next-auth";
@@ -42,23 +38,28 @@ declare module "next-auth/jwt" {
   }
 }
 
+// DO NOT throw here — a throw at module level crashes the entire auth module,
+// including the error page, producing a 500 instead of a helpful error message.
+// NextAuth itself handles missing secrets with its own Configuration error.
 const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
-
 if (!secret) {
-  throw new Error(
-    "[auth] AUTH_SECRET is not set. " +
-    "Add it to Vercel → Project → Settings → Environment Variables, then redeploy. " +
-    "Generate a value with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
+  console.error(
+    "\n[auth] ⛔ AUTH_SECRET is not set!\n" +
+    "  → Vercel: Project → Settings → Environment Variables\n" +
+    "  → Add AUTH_SECRET = b65407f311c91ff30bf8686d061141bc214fa76c4e432c7a022dfa6b63d667c4\n" +
+    "  → Then REDEPLOY\n"
   );
 }
 
-// Production: https://kairo.ashishkarmakar.in
-// Local dev:  http://localhost:3000
-// Set NEXTAUTH_URL in Vercel → Settings → Environment Variables
-const BASE_URL = (process.env.NEXTAUTH_URL ?? "http://localhost:3000").replace(/\/$/, "");
+// Base URL — must be set to https://kairo.ashishkarmakar.in in Vercel.
+// If missing, defaults to localhost which causes redirect_uri mismatch with GitHub.
+const BASE_URL = (
+  process.env.NEXTAUTH_URL ??
+  process.env.NEXT_PUBLIC_BASE_URL ??
+  "http://localhost:3000"
+).replace(/\/$/, "");
 
-// The callback URL registered in your GitHub OAuth App.
-// This is sent as redirect_uri in BOTH authorization AND token exchange.
+// Must match "Authorization callback URL" in GitHub OAuth App settings exactly.
 const GITHUB_CALLBACK_URL = `${BASE_URL}/api/auth/github/callback`;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -67,10 +68,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
   providers: [
     GitHub({
-      clientId: process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      clientId: process.env.GITHUB_CLIENT_ID ?? "",
+      clientSecret: process.env.GITHUB_CLIENT_SECRET ?? "",
 
-      // Override the redirect_uri sent to GitHub in the authorization request.
+      // Send our custom callback URL to GitHub in the authorization request.
       authorization: {
         params: {
           scope: "read:user user:email",
@@ -78,37 +79,52 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         },
       },
 
-      // Override the token exchange so the redirect_uri sent to GitHub's token
-      // endpoint matches the authorization redirect_uri above.
-      // Without this, NextAuth computes /api/auth/callback/github for the token
-      // exchange, which doesn't match the OAuth App registration → GitHub rejects it.
+      // Override token exchange to use our callback URL as redirect_uri.
+      // Without this, NextAuth computes /api/auth/callback/github internally,
+      // which doesn't match the GitHub OAuth App registration → token exchange fails.
       token: {
         async request(context: any) {
           const { params, checks, provider } = context;
 
+          console.log("[auth] token exchange → redirect_uri:", GITHUB_CALLBACK_URL);
+
           const body = new URLSearchParams({
-            client_id: provider.clientId!,
-            client_secret: provider.clientSecret!,
-            code: params.code!,
+            client_id: provider.clientId,
+            client_secret: provider.clientSecret,
+            code: params.code,
             redirect_uri: GITHUB_CALLBACK_URL,
             grant_type: "authorization_code",
           });
 
-          // Include PKCE code_verifier if NextAuth generated one
           if (checks?.code_verifier) {
             body.set("code_verifier", checks.code_verifier);
           }
 
-          const response = await fetch("https://github.com/login/oauth/access_token", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              Accept: "application/json",
-            },
-            body,
-          });
+          const response = await fetch(
+            "https://github.com/login/oauth/access_token",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                Accept: "application/json",
+              },
+              body,
+            }
+          );
+
+          if (!response.ok) {
+            const text = await response.text();
+            console.error("[auth] GitHub token exchange failed:", response.status, text);
+            throw new Error(`GitHub token exchange failed: ${response.status}`);
+          }
 
           const tokens = await response.json();
+
+          if (tokens.error) {
+            console.error("[auth] GitHub token error:", tokens.error, tokens.error_description);
+            throw new Error(`GitHub OAuth error: ${tokens.error} — ${tokens.error_description}`);
+          }
+
           return { tokens };
         },
       },
