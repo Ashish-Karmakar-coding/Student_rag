@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "buildCommand": "pnpm run vercel:build",
+  "installCommand": "pnpm install",
+  "outputDirectory": "apps/frontend/.next",
+  "framework": "nextjs",
+  "functions": {
+    "apps/frontend/app/api/**/*.ts": {
+      "maxDuration": 60
+    }
+  }
+}

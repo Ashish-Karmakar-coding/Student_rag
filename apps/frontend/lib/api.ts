@@ -1,10 +1,14 @@
 /**
  * apps/frontend/lib/api.ts
  *
- * Type-safe API client for the Hono backend.
- * All functions use credentials: "include" so the access_token cookie is sent.
+ * Type-safe Axios-based API client for the Hono backend.
  *
- * NEXT_PUBLIC_API_URL defaults to http://localhost:8000 for local development.
+ * CORS is handled by Axios via `withCredentials: true` on every request,
+ * which sends the access_token cookie to the backend automatically.
+ *
+ * NEXT_PUBLIC_API_URL must be set in Vercel environment variables:
+ *   - Local dev: http://localhost:8000
+ *   - Production: https://<your-backend-url>
  */
 
 import type {
@@ -20,25 +24,52 @@ import type {
 
 import axios from "axios";
 
-const BASE = process.env["NEXT_PUBLIC_API_URL"] ?? "/api";
+const BASE = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:8000";
 
-const apiClient = axios.create({
+// ── Axios instance ─────────────────────────────────────────────────────────────
+
+export const apiClient = axios.create({
   baseURL: BASE,
-  withCredentials: true,
+  withCredentials: true, // send cookies (access_token) on every request
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
+
+// ── Request interceptor — attach Authorization header if available ─────────────
+
+apiClient.interceptors.request.use(
+  (config) => {
+    // NextAuth session token is stored as a cookie — withCredentials handles it.
+    // If you later add a bearer token flow, set it here:
+    // const token = getToken();
+    // if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// ── Response interceptor — unwrap data, normalise errors ─────────────────────
 
 apiClient.interceptors.response.use(
   (res) => res.data,
   (err) => {
-    const message = err.response?.data?.error ?? err.message ?? "API Error";
+    const message =
+      err.response?.data?.error ??
+      err.response?.data?.message ??
+      err.message ??
+      "API Error";
     return Promise.reject(new Error(message));
   }
 );
 
-// ── Generic fetch wrapper ─────────────────────────────────────────────────────
+// ── Generic request helper ────────────────────────────────────────────────────
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const method = init?.method ?? "GET";
+async function apiFetch<T>(
+  path: string,
+  init?: RequestInit
+): Promise<T> {
+  const method = (init?.method ?? "GET") as string;
   const data = init?.body ? JSON.parse(init.body as string) : undefined;
 
   return apiClient.request<any, T>({
@@ -98,17 +129,18 @@ export async function uploadFiles(
   const form = new FormData();
   files.forEach((f) => form.append("files", f));
 
-  try {
-    const data = await apiClient.post<any, { jobId: string; fileCount: number; skipped: string[] }>("/upload", form, {
+  // Use apiClient directly for multipart — don't set Content-Type manually
+  // (Axios sets it with the correct boundary automatically for FormData)
+  return apiClient.post<any, { jobId: string; fileCount: number; skipped: string[] }>(
+    "/upload",
+    form,
+    {
       headers: {
-        "Content-Type": "multipart/form-data",
+        // Let Axios handle Content-Type boundary for FormData
+        "Content-Type": undefined,
       },
-    });
-    return data;
-  } catch (err: any) {
-    const message = err.response?.data?.error ?? err.message ?? "Upload failed";
-    throw new Error(message);
-  }
+    }
+  );
 }
 
 export function getIngestStatus(jobId: string): Promise<IngestStatusResponse> {

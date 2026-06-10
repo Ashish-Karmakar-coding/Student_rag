@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "pnpm --parallel --filter \"./apps/*\" dev",
     "build": "pnpm --filter \"./packages/*\" build && pnpm --filter \"./apps/*\" build",
+    "vercel:build": "pnpm --filter \"./packages/*\" build && pnpm --filter @study-tutor/frontend build",
     "lint": "pnpm --recursive lint",
     "type-check": "pnpm --recursive type-check",
     "test": "pnpm --recursive test",

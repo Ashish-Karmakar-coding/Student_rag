@@ -24,7 +24,11 @@ import { useState, useRef, useCallback } from "react";
 import { useAppStore } from "./store";
 import type { SSEEvent, Source } from "@study-tutor/shared";
 
-const BASE = process.env["NEXT_PUBLIC_API_URL"] ?? "/api";
+
+// SSE streaming must use fetch() — Axios does not support streaming responses.
+// The BASE URL is kept in sync with api.ts via the same env var.
+const BASE = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:8000";
+
 
 interface UseStreamOptions {
   onDone?: (text: string, conceptTags: string[], sources: Source[]) => void;

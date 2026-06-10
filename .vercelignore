@@ -1,0 +1,13 @@
+# Root-level Vercel ignore
+node_modules
+apps/backend
+apps/frontend/.next
+apps/frontend/node_modules
+packages/*/node_modules
+.env.local
+.env*.local
+*.log
+.DS_Store
+tsconfig.tsbuildinfo
+docker-compose.yml
+test-backend.sh

@@ -32,13 +32,25 @@ const app = new Hono();
 
 // ── Global middleware ─────────────────────────────────────────────────────────
 
-// CORS — allow frontend origin only
+// CORS — allow frontend origins
+// In production set ALLOWED_ORIGINS as a comma-separated list, e.g.:
+//   ALLOWED_ORIGINS=https://student-rag.vercel.app,https://kairo.ashishkarmakar.in
+// Falls back to legacy ALLOWED_ORIGIN for backwards compatibility.
+function getAllowedOrigins(): string | string[] {
+  if (isDev) {
+    return ["http://localhost:3000", "http://127.0.0.1:3000"];
+  }
+  const multi = process.env["ALLOWED_ORIGINS"];
+  if (multi) {
+    return multi.split(",").map((o) => o.trim()).filter(Boolean);
+  }
+  return process.env["ALLOWED_ORIGIN"] ?? "https://yourdomain.com";
+}
+
 app.use(
   "*",
   cors({
-    origin: isDev
-      ? ["http://localhost:3000", "http://127.0.0.1:3000"]
-      : (process.env["ALLOWED_ORIGIN"] ?? "https://yourdomain.com"),
+    origin: getAllowedOrigins(),
     allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true, // allow cookies
