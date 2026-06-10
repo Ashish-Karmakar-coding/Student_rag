@@ -8,6 +8,6 @@
       "@study-tutor/shared": ["../../packages/shared/src/index.ts"]
     }
   },
-  "include": ["src/**/*", "../../packages/shared/src/**/*"],
+  "include": ["src/**/*", "api/**/*", "../../packages/shared/src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }
