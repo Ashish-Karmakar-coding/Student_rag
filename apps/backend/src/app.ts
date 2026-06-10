@@ -10,7 +10,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { env, isDev } from "./config.js";
+import { isDev } from "./config.js";
 import { connectDB } from "./database.js";
 
 // ── Route imports ─────────────────────────────────────────────────────────────
@@ -30,7 +30,7 @@ const app = new Hono();
 // ── DB connect middleware (serverless-safe) ───────────────────────────────────
 // Ensures MongoDB is connected before every request.
 // connectDB() is idempotent — safe to call on every invocation.
-app.use("*", async (c, next) => {
+app.use("*", async (_c, next) => {
   await connectDB();
   await next();
 });
