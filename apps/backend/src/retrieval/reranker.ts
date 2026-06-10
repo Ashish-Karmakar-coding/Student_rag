@@ -14,7 +14,6 @@
  */
 
 import type { RetrievedChunk } from "./hybrid.js";
-import { env } from "../config.js";
 
 const COHERE_MODEL = "rerank-english-v3.0";
 
@@ -22,12 +21,12 @@ const COHERE_MODEL = "rerank-english-v3.0";
 let cohereClient: import("cohere-ai").CohereClient | null = null;
 
 async function getCohere(): Promise<import("cohere-ai").CohereClient | null> {
-  if (!env.COHERE_API_KEY) return null;
+  if (!process.env.COHERE_API_KEY) return null;
   if (cohereClient) return cohereClient;
 
   try {
     const { CohereClient } = await import("cohere-ai");
-    cohereClient = new CohereClient({ token: env.COHERE_API_KEY });
+    cohereClient = new CohereClient({ token: process.env.COHERE_API_KEY });
     return cohereClient;
   } catch (err) {
     console.warn(
@@ -99,5 +98,5 @@ export async function rerank(
  * Used by /health to surface reranker status.
  */
 export function isCohereEnabled(): boolean {
-  return Boolean(env.COHERE_API_KEY);
+  return Boolean(process.env.COHERE_API_KEY);
 }
