@@ -17,9 +17,7 @@ import { User } from "../models/User.js";
 // ── Encryption utilities ──────────────────────────────────────────────────────
 
 const ALGORITHM = "aes-256-gcm";
-const KEY_LENGTH = 32; // 256 bits
 const IV_LENGTH = 16; // 128 bits
-const AUTH_TAG_LENGTH = 16;
 
 /**
  * Derives a 32-byte encryption key from APP_SECRET
@@ -73,18 +71,6 @@ function decrypt(encrypted: string): string {
   return decrypted;
 }
 
-// ── Env-var fallback map ──────────────────────────────────────────────────────
-
-function getFallbackKey(provider: string): string | null {
-  if (provider === "openai") {
-    return env.KEYTAR_FALLBACK_OPENAI_KEY ?? null;
-  }
-  if (provider === "anthropic") {
-    return env.KEYTAR_FALLBACK_ANTHROPIC_KEY ?? null;
-  }
-  return null;
-}
-
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
@@ -126,12 +112,11 @@ export async function getApiKey(
       return decrypt(user.encryptedKeys[provider as "openai" | "anthropic"]!);
     } catch (err) {
       console.error(`Failed to decrypt ${provider} key for user ${userId}:`, err);
-      // Fall through to fallback
+      return null;
     }
   }
 
-  // Fall back to env var if key not found or decryption failed
-  return getFallbackKey(provider);
+  return null;
 }
 
 /**
@@ -168,5 +153,5 @@ export async function hasApiKey(
     return true;
   }
 
-  return getFallbackKey(provider) !== null;
+  return false;
 }

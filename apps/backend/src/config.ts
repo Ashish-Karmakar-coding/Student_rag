@@ -34,12 +34,6 @@ const EnvSchema = z.object({
     .string()
     .min(32, "NEXTAUTH_SECRET must be at least 32 characters"),
 
-  // ── Optional integrations ──────────────────────────────────────────────────
-  COHERE_API_KEY: z.string().optional(),
-
-  // ── keytar fallback (used when native bindings unavailable) ───────────────
-  KEYTAR_FALLBACK_OPENAI_KEY: z.string().optional(),
-  KEYTAR_FALLBACK_ANTHROPIC_KEY: z.string().optional(),
 });
 
 const parsed = EnvSchema.safeParse(process.env);
