@@ -1,7 +1,7 @@
 {
   "version": 2,
   "installCommand": "cd ../.. && pnpm install",
-  "buildCommand": "cd ../.. && pnpm --filter @study-tutor/shared build && cd apps/backend && pnpm build",
+  "buildCommand": "cd ../.. && pnpm --filter @study-tutor/shared build",
   "functions": {
     "api/index.ts": {
       "maxDuration": 60,

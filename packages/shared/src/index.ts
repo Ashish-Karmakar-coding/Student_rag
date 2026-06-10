@@ -6,5 +6,6 @@
  * Import in frontend: import { ... } from "@study-tutor/shared"
  */
 
-export * from "./types";
-export * from "./schemas";
+export * from "./types.js";
+export * from "./schemas.js";
+
