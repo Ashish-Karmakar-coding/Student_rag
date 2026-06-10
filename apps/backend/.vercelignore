@@ -1,0 +1,12 @@
+# Backend-specific Vercel ignore
+# Applied when this app is the Vercel project root (Root Directory = apps/backend)
+
+node_modules
+.env
+.env.local
+.env*.local
+*.log
+.DS_Store
+tsconfig.tsbuildinfo
+Dockerfile
+vitest.config.ts

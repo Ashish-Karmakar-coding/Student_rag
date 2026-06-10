@@ -3,20 +3,17 @@
  *
  * Vercel Serverless Function entry point for the Hono backend.
  *
- * This file is auto-detected by Vercel when the project root is apps/backend.
- * The vercel.json rewrites all requests (/*) to this handler.
+ * Vercel auto-detects TypeScript files in the api/ directory and compiles them.
+ * This file imports from ../src/app.ts (source), which Vercel bundles via esbuild.
  *
- * Uses the Node.js runtime (not Edge) because the app depends on:
- *   - mongoose (MongoDB driver)
- *   - crypto (Node built-in, AES-256-GCM key encryption)
- *   - pdf-parse, mammoth (file parsing)
+ * Runtime: Node.js (not Edge) — required for mongoose, crypto, file parsers.
+ * Max duration: 60s (configured in vercel.json for AI generation requests).
  */
 
 import { handle } from "hono/vercel";
+// @ts-ignore — Vercel bundles this from source; .js extension is correct for ESM
 import app from "../src/app.js";
 
-// Force Node.js runtime — required for mongoose, crypto, file parsers
 export const runtime = "nodejs";
 
-// Vercel invokes the default export as the HTTP handler
 export default handle(app);

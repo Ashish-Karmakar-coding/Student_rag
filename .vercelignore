@@ -1,9 +1,9 @@
 # Root-level Vercel ignore
+# These files are excluded from ALL Vercel projects using this repo.
+# Do NOT exclude apps/backend or apps/frontend here — each project
+# needs its own files. Use per-project .vercelignore inside each app folder.
+
 node_modules
-apps/backend
-apps/frontend/.next
-apps/frontend/node_modules
-packages/*/node_modules
 .env.local
 .env*.local
 *.log
