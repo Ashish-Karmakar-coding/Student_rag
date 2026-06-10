@@ -4,6 +4,7 @@
     "outDir": "./dist",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "paths": {
       "@study-tutor/shared": ["../../packages/shared/src/index.ts"]
     }
