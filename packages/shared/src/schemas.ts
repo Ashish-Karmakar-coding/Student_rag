@@ -40,8 +40,8 @@ export type ProviderConfigInput = z.infer<typeof ProviderConfigSchema>;
 export const SyncUserSchema = z.object({
   githubId: z.string().min(1),
   login: z.string().min(1),
-  avatarUrl: z.string().url(),
-  email: z.string().email().nullable(),
+  avatarUrl: z.string(),
+  email: z.string().nullable().optional(),
 });
 
 export type SyncUserInput = z.infer<typeof SyncUserSchema>;

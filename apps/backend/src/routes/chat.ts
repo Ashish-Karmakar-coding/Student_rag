@@ -25,7 +25,7 @@ import { Session } from "../models/Session.js";
 
 export const chatRoutes = new Hono();
 
-chatRoutes.use("*", authMiddleware);
+chatRoutes.use("/chat", authMiddleware);
 
 // ── POST /chat ────────────────────────────────────────────────────────────────
 

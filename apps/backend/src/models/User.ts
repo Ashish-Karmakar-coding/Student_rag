@@ -62,7 +62,6 @@ const UserSchema = new Schema<IUser>(
       type: String,
       required: true,
       unique: true,
-      index: true,
     },
     login: { type: String, required: true },
     avatarUrl: { type: String, required: true },
@@ -86,10 +85,6 @@ const UserSchema = new Schema<IUser>(
     versionKey: false,
   }
 );
-
-// ── Indexes ───────────────────────────────────────────────────────────────────
-
-UserSchema.index({ githubId: 1 }, { unique: true });
 
 // ── Model ─────────────────────────────────────────────────────────────────────
 

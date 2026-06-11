@@ -63,7 +63,6 @@ const IngestJobSchema = new Schema<IIngestJob>(
       type: String,
       required: true,
       unique: true,
-      index: true,
     },
     userId: { type: String, required: true, index: true },
     files: { type: [IngestFileSchema], default: [] },
@@ -83,7 +82,6 @@ const IngestJobSchema = new Schema<IIngestJob>(
 
 // ── Indexes ───────────────────────────────────────────────────────────────────
 
-IngestJobSchema.index({ jobId: 1 }, { unique: true });
 // For listing a user's recent jobs (if needed later)
 IngestJobSchema.index({ userId: 1, createdAt: -1 });
 

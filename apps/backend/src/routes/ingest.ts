@@ -22,7 +22,10 @@ import {
 
 export const ingestRoutes = new Hono();
 
-ingestRoutes.use("*", authMiddleware);
+ingestRoutes.use("/upload", authMiddleware);
+ingestRoutes.use("/upload/*", authMiddleware);
+ingestRoutes.use("/files", authMiddleware);
+ingestRoutes.use("/ingest-status/*", authMiddleware);
 
 // ── POST /upload ──────────────────────────────────────────────────────────────
 

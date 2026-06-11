@@ -44,6 +44,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         })
         .catch((err) => {
           console.error("[AppLayout] Failed to sync user session with backend:", err);
+          if (axios.isAxiosError(err) && err.response) {
+            console.error("[AppLayout] Sync response error payload:", err.response.data);
+          }
         })
         .finally(() => {
           setSyncing(false);

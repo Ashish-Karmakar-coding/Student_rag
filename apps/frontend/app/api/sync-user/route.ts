@@ -44,7 +44,7 @@ export async function POST(): Promise<NextResponse> {
       githubId,
       login,
       avatarUrl,
-      email: email ?? null,
+      email: email || null,
     })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
@@ -57,7 +57,7 @@ export async function POST(): Promise<NextResponse> {
     let backendRes: AxiosResponse<{ ok: boolean; token?: string }>;
     try {
       backendRes = await axios.post<{ ok: boolean; token?: string }>(`${BACKEND_URL}/auth/sync`, {
-        githubId, login, avatarUrl, email: email ?? null
+        githubId, login, avatarUrl, email: email || null
       }, {
         headers: {
           "Content-Type": "application/json",

@@ -97,6 +97,10 @@ apiClient.interceptors.response.use(
       } catch (syncErr) {
         isRefreshing = false;
         processQueue(syncErr);
+        console.error("[apiClient] Token sync failed inside interceptor:", syncErr);
+        if (axios.isAxiosError(syncErr) && syncErr.response) {
+          console.error("[apiClient] Token sync response payload:", syncErr.response.data);
+        }
         // Fallback to rejecting with the original error
         const message =
           err.response?.data?.error ??
