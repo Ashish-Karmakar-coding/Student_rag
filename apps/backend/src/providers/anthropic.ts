@@ -8,17 +8,21 @@
  * Models: claude-3-5-sonnet-20241022 (default), claude-3-haiku-20240307, etc.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import AnthropicLib from "@anthropic-ai/sdk";
 import type { LLMProvider, EmbeddingProvider } from "./base.js";
 import { ProviderError, ProviderAuthError } from "./base.js";
 import { getApiKey } from "./keychain.js";
 
-type AnthropicClient = InstanceType<typeof Anthropic>;
+// Cast to `any` to avoid TypeScript module resolution issues across
+// different anthropic SDK versions and moduleResolution settings.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const Anthropic: any = AnthropicLib;
 
 const MAX_TOKENS = 4096;
 
 export class AnthropicProvider implements LLMProvider, EmbeddingProvider {
-  private clientPromise: Promise<AnthropicClient>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private clientPromise: Promise<any>;
 
   constructor(
     private readonly model: string,
@@ -27,15 +31,17 @@ export class AnthropicProvider implements LLMProvider, EmbeddingProvider {
     this.clientPromise = this.initClient();
   }
 
-  private async initClient(): Promise<AnthropicClient> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async initClient(): Promise<any> {
     const apiKey = await getApiKey(this.userId, "anthropic");
     if (!apiKey) {
       throw new ProviderAuthError("anthropic");
     }
-    return new Anthropic({ apiKey }) as AnthropicClient;
+    return new Anthropic({ apiKey });
   }
 
-  private async client(): Promise<AnthropicClient> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async client(): Promise<any> {
     return this.clientPromise;
   }
 

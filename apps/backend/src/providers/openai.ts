@@ -11,19 +11,24 @@
  * API key is retrieved per-user from MongoDB (encrypted with AES-256-GCM).
  */
 
-import OpenAI from "openai";
+import OpenAILib from "openai";
 import type { LLMProvider, EmbeddingProvider } from "./base.js";
 import { ProviderError, ProviderAuthError } from "./base.js";
 import { getApiKey } from "./keychain.js";
 
-// Use InstanceType to get the proper class type from the default export
-type OpenAIClient = InstanceType<typeof OpenAI>;
+// Cast to `any` to avoid TypeScript module resolution issues across
+// different openai SDK versions and moduleResolution settings.
+// The default export type changes between openai v4.52 and v4.104+
+// under moduleResolution:"NodeNext", causing build failures on Vercel.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const OpenAI: any = OpenAILib;
 
 const EMBED_MODEL_DEFAULT = "text-embedding-3-small";
 const EMBED_BATCH_SIZE = 32;
 
 export class OpenAIProvider implements LLMProvider, EmbeddingProvider {
-  private clientPromise: Promise<OpenAIClient>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private clientPromise: Promise<any>;
 
   constructor(
     private readonly model: string,
@@ -34,15 +39,17 @@ export class OpenAIProvider implements LLMProvider, EmbeddingProvider {
     this.clientPromise = this.initClient();
   }
 
-  private async initClient(): Promise<OpenAIClient> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async initClient(): Promise<any> {
     const apiKey = await getApiKey(this.userId, "openai");
     if (!apiKey) {
       throw new ProviderAuthError("openai");
     }
-    return new OpenAI({ apiKey }) as OpenAIClient;
+    return new OpenAI({ apiKey });
   }
 
-  private async client(): Promise<OpenAIClient> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async client(): Promise<any> {
     return this.clientPromise;
   }
 
