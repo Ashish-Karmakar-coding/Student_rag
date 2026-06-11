@@ -29,6 +29,7 @@ const app = new Hono();
 
 // Intercept favicon requests early to avoid running DB connection middleware
 app.get("/favicon.ico", (c) => c.body(null, 204));
+app.get("/favicon.png", (c) => c.body(null, 204));
 
 // ── DB connect middleware (serverless-safe) ───────────────────────────────────
 // Ensures MongoDB is connected before every request.

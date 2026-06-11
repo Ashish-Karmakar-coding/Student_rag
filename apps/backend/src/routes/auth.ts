@@ -20,73 +20,84 @@ export const authRoutes = new Hono();
 // ── POST /auth/sync ───────────────────────────────────────────────────────────
 
 authRoutes.post("/sync", async (c) => {
-  // Verify NextAuth JWT from Authorization header
+  console.log("[/auth/sync] Started");
   const authHeader = c.req.header("Authorization");
   const token = authHeader?.replace("Bearer ", "").trim();
 
   if (!token) {
+    console.log("[/auth/sync] Missing token");
     return c.json({ error: "Missing Authorization header" }, 401);
   }
 
   let nextAuthPayload;
   try {
     nextAuthPayload = await verifyNextAuthToken(token);
+    console.log("[/auth/sync] Token verified:", nextAuthPayload.sub);
   } catch (err) {
-    console.error("verifyNextAuthToken failed:", err);
+    console.error("[/auth/sync] verifyNextAuthToken failed:", err);
     return c.json({ error: "Invalid NextAuth token" }, 401);
   }
 
-  // Parse and validate body
-  const bodyResult = SyncUserSchema.safeParse(await c.req.json());
+  const bodyRaw = await c.req.json();
+  const bodyResult = SyncUserSchema.safeParse(bodyRaw);
   if (!bodyResult.success) {
+    console.log("[/auth/sync] Invalid body", bodyResult.error.flatten());
     return c.json({ error: "Invalid request body", details: bodyResult.error.flatten() }, 400);
   }
 
   const { githubId, login, avatarUrl, email } = bodyResult.data;
+  console.log("[/auth/sync] Parsed body for githubId:", githubId);
 
-  // Verify token sub matches body githubId (prevent spoofing)
   const tokenGithubId = nextAuthPayload.githubId ?? nextAuthPayload.sub;
   if (tokenGithubId && tokenGithubId !== githubId) {
+    console.log("[/auth/sync] Mismatch githubId");
     return c.json({ error: "Token/body githubId mismatch" }, 401);
   }
 
-  // Upsert user in MongoDB
-  const user = await User.findOneAndUpdate(
-    { githubId },
-    {
-      $set: { login, avatarUrl, email, lastSeen: new Date() },
-      $setOnInsert: {
-        createdAt: new Date(),
-        hasFiles: false,
-        providerConfig: {
-          provider: "ollama",
-          model: "llama3",
-          ollamaUrl: "http://localhost:11434",
-          keyStored: false,
-          embedProvider: "ollama",
-          embedModel: "nomic-embed-text",
+  console.log("[/auth/sync] Calling MongoDB findOneAndUpdate");
+  try {
+    const user = await User.findOneAndUpdate(
+      { githubId },
+      {
+        $set: { login, avatarUrl, email, lastSeen: new Date() },
+        $setOnInsert: {
+          createdAt: new Date(),
+          hasFiles: false,
+          providerConfig: {
+            provider: "ollama",
+            model: "llama3",
+            ollamaUrl: "http://localhost:11434",
+            keyStored: false,
+            embedProvider: "ollama",
+            embedModel: "nomic-embed-text",
+          },
         },
       },
-    },
-    { upsert: true, new: true }
-  );
+      { upsert: true, new: true, maxTimeMS: 5000 }
+    );
+    console.log("[/auth/sync] MongoDB operation completed", user ? "User found/created" : "Null user");
 
-  // Sign backend JWT
-  const backendToken = await signBackendToken(githubId, login);
+    console.log("[/auth/sync] Signing backend token");
+    const backendToken = await signBackendToken(githubId, login);
 
-  // Set HTTP-only cookie
-  setCookie(c, ACCESS_TOKEN_COOKIE, backendToken, cookieOptions(isDev));
+    console.log("[/auth/sync] Setting cookie");
+    setCookie(c, ACCESS_TOKEN_COOKIE, backendToken, cookieOptions(isDev));
 
-  return c.json({
-    ok: true,
-    user: {
-      githubId: user.githubId,
-      login: user.login,
-      avatarUrl: user.avatarUrl,
-      hasFiles: user.hasFiles,
-      provider: user.providerConfig.provider,
-    },
-  });
+    console.log("[/auth/sync] Returning success");
+    return c.json({
+      ok: true,
+      user: {
+        githubId: user!.githubId,
+        login: user!.login,
+        avatarUrl: user!.avatarUrl,
+        hasFiles: user!.hasFiles,
+        provider: user!.providerConfig.provider,
+      },
+    });
+  } catch (err) {
+    console.error("[/auth/sync] Error during DB operation or token signing:", err);
+    return c.json({ error: "Internal server error during sync" }, 500);
+  }
 });
 
 // ── POST /auth/logout ─────────────────────────────────────────────────────────

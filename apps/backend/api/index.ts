@@ -16,4 +16,10 @@ import app from "../src/app.js";
 
 export const runtime = "nodejs";
 
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 export default handle(app);
