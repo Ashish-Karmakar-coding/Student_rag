@@ -26,8 +26,8 @@ import type { SSEEvent, Source } from "@study-tutor/shared";
 
 
 // SSE streaming must use fetch() — Axios does not support streaming responses.
-// The BASE URL is kept in sync with api.ts via the same env var.
-const BASE = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:8000";
+// Use the Next.js proxy rewrite to avoid cross-domain cookie issues in production.
+const BASE = "/api/backend";
 
 
 interface UseStreamOptions {

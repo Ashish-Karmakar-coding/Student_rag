@@ -24,7 +24,8 @@ import type {
 
 import axios from "axios";
 
-const BASE = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:8000";
+// Use the Next.js proxy rewrite to avoid cross-domain cookie issues in production
+const BASE = "/api/backend";
 
 // ── Axios instance ─────────────────────────────────────────────────────────────
 
