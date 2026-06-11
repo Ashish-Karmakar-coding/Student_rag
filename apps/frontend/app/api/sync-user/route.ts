@@ -28,6 +28,11 @@ const BACKEND_URL =
 
 const NEXTAUTH_SECRET = new TextEncoder().encode(process.env["NEXTAUTH_SECRET"]!);
 
+/** Allow enough time for backend cold start + MongoDB connect, but fail before Vercel 504. */
+const BACKEND_SYNC_TIMEOUT_MS = 25_000;
+
+export const maxDuration = 30;
+
 export async function POST(): Promise<NextResponse> {
   try {
     const session = await auth();
@@ -63,10 +68,21 @@ export async function POST(): Promise<NextResponse> {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
+        timeout: BACKEND_SYNC_TIMEOUT_MS,
       });
     } catch (err: any) {
-      console.error("[sync-user] Backend rejected sync:", err.response?.status);
-      console.error("[sync-user] Backend error body:", err.response?.data);
+      const isTimeout = err.code === "ECONNABORTED";
+      console.error("[sync-user] Backend rejected sync:", err.response?.status ?? err.code);
+      console.error("[sync-user] Backend error body:", err.response?.data ?? err.message);
+      if (isTimeout) {
+        return NextResponse.json(
+          {
+            error: "Backend sync timed out",
+            message: "The API server did not respond in time. Check MongoDB Atlas network access and redeploy the backend with NODEJS_HELPERS=0.",
+          },
+          { status: 504 }
+        );
+      }
       return NextResponse.json(err.response?.data ?? { error: "Unknown" }, { status: err.response?.status ?? 500 });
     }
 

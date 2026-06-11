@@ -11,7 +11,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { isDev } from "./config.js";
-import { connectDB } from "./database.js";
+import { connectDB, resetConnection } from "./database.js";
 
 // ── Route imports ─────────────────────────────────────────────────────────────
 import { authRoutes } from "./routes/auth.js";
@@ -27,19 +27,13 @@ import { healthRoutes } from "./routes/health.js";
 
 const app = new Hono();
 
-// Intercept favicon requests early to avoid running DB connection middleware
+// Intercept favicon requests early — no DB or CORS work needed
 app.get("/favicon.ico", (c) => c.body(null, 204));
 app.get("/favicon.png", (c) => c.body(null, 204));
 
-// ── DB connect middleware (serverless-safe) ───────────────────────────────────
-// Ensures MongoDB is connected before every request.
-// connectDB() is idempotent — safe to call on every invocation.
-app.use("*", async (_c, next) => {
-  await connectDB();
-  await next();
-});
-
-// ── CORS ──────────────────────────────────────────────────────────────────────
+// ── CORS (must run before DB connect) ─────────────────────────────────────────
+// OPTIONS preflight and error responses must not wait on MongoDB.
+// Vercel requires NODEJS_HELPERS=0 (see vercel.json) for Hono POST bodies.
 // In production set ALLOWED_ORIGINS as a comma-separated list, e.g.:
 //   ALLOWED_ORIGINS=https://app.yourdomain.com,https://yourdomain.com
 // Falls back to legacy ALLOWED_ORIGIN for backwards compatibility.
@@ -63,6 +57,42 @@ app.use(
     credentials: true,
   })
 );
+
+// ── DB connect middleware (serverless-safe) ───────────────────────────────────
+// Ensures MongoDB is connected before data routes. Runs after CORS so preflight
+// and lightweight routes are not blocked by Atlas cold starts.
+const DB_CONNECT_TIMEOUT_MS = 12_000;
+
+app.use("*", async (c, next) => {
+  // Root health probe does not need MongoDB
+  if (c.req.path === "/") {
+    return next();
+  }
+
+  try {
+    await Promise.race([
+      connectDB(),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Database connection timed out")),
+          DB_CONNECT_TIMEOUT_MS
+        )
+      ),
+    ]);
+  } catch (err) {
+    resetConnection();
+    console.error("[connectDB middleware]", err);
+    return c.json(
+      {
+        error: "Database unavailable",
+        message: isDev && err instanceof Error ? err.message : "Please try again shortly",
+      },
+      503
+    );
+  }
+
+  await next();
+});
 
 // Request logger (dev only)
 if (isDev) {

@@ -8,6 +8,9 @@
  *
  * Runtime: Node.js (not Edge) — required for mongoose, crypto, file parsers.
  * Max duration: 60s (configured in vercel.json for AI generation requests).
+ *
+ * NODEJS_HELPERS=0 is set in vercel.json — required so Vercel does not wrap
+ * requests in a way that breaks Hono's Web Standard Request handling on POST.
  */
 
 import { handle } from "hono/vercel";

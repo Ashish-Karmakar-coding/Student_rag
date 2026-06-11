@@ -18,6 +18,15 @@ import { env } from "./config.js";
  */
 let cachedConnection: Promise<typeof mongoose> | null = null;
 
+/** Clear a stuck connection attempt (e.g. after middleware timeout). */
+export function resetConnection(): void {
+  cachedConnection = null;
+  const state = mongoose.connection.readyState;
+  if (state === 2 || state === 3) {
+    mongoose.disconnect().catch(() => {});
+  }
+}
+
 export async function connectDB(): Promise<void> {
   const state = mongoose.connection.readyState;
 
