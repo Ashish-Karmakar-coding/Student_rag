@@ -29,6 +29,7 @@ export const authMiddleware = createMiddleware(async (c, next) => {
   const token = getCookie(c, ACCESS_TOKEN_COOKIE);
 
   if (!token) {
+    console.error("[authMiddleware] Unauthorized - missing token. Cookies:", c.req.header("cookie"));
     return c.json({ error: "Unauthorized — missing token" }, 401);
   }
 
@@ -37,6 +38,7 @@ export const authMiddleware = createMiddleware(async (c, next) => {
     const payload = await verifyBackendToken(token);
 
     if (!payload.sub) {
+      console.error("[authMiddleware] Unauthorized - malformed token payload:", payload);
       return c.json({ error: "Unauthorized — malformed token" }, 401);
     }
 
@@ -44,6 +46,7 @@ export const authMiddleware = createMiddleware(async (c, next) => {
     const user = await User.findOne({ githubId: payload.sub }).lean();
 
     if (!user) {
+      console.error(`[authMiddleware] Unauthorized - user not found for githubId: ${payload.sub}`);
       return c.json({ error: "Unauthorized — user not found" }, 401);
     }
 
@@ -53,6 +56,7 @@ export const authMiddleware = createMiddleware(async (c, next) => {
     await next();
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Invalid token";
+    console.error("[authMiddleware] Unauthorized - token verification failed:", msg);
     // Don't leak internal error details in production
     return c.json({ error: "Unauthorized", details: msg }, 401);
   }
