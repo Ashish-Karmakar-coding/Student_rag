@@ -11,6 +11,7 @@ import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
+import axios from "axios";
 import {
   Brain, Upload, MessageSquare, BarChart3, Zap,
   Settings, LogOut, PanelLeftClose, PanelLeft, Search, Command
@@ -28,8 +29,27 @@ const NAV_ITEMS = [
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [collapsed, setCollapsed] = useState(false);
+  const [synced, setSynced] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  // Proactively sync user session with backend if logged in
+  useEffect(() => {
+    if (status === "authenticated" && session && !synced && !syncing) {
+      setSyncing(true);
+      axios.post("/api/sync-user")
+        .then(() => {
+          setSynced(true);
+        })
+        .catch((err) => {
+          console.error("[AppLayout] Failed to sync user session with backend:", err);
+        })
+        .finally(() => {
+          setSyncing(false);
+        });
+    }
+  }, [status, session, synced, syncing]);
 
   // Command Bar State
   const [commandBarOpen, setCommandBarOpen] = useState(false);

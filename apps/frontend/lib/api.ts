@@ -50,11 +50,63 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ── Response interceptor — unwrap data, normalise errors ─────────────────────
+// ── Response interceptor — unwrap data, normalise errors, auto-retry on 401 ─────
+
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve();
+    }
+  });
+  failedQueue = [];
+};
 
 apiClient.interceptors.response.use(
   (res) => res.data,
-  (err) => {
+  async (err) => {
+    const originalRequest = err.config;
+
+    // Check if it's a 401 error and we haven't already retried this request
+    if (err.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(() => {
+            return apiClient(originalRequest);
+          })
+          .catch((err) => {
+            return Promise.reject(err);
+          });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        // Attempt to sync NextAuth session with the backend to write access_token cookie
+        await axios.post("/api/sync-user");
+        isRefreshing = false;
+        processQueue(null);
+        return apiClient(originalRequest);
+      } catch (syncErr) {
+        isRefreshing = false;
+        processQueue(syncErr);
+        // Fallback to rejecting with the original error
+        const message =
+          err.response?.data?.error ??
+          err.response?.data?.message ??
+          err.message ??
+          "API Error";
+        return Promise.reject(new Error(message));
+      }
+    }
+
     const message =
       err.response?.data?.error ??
       err.response?.data?.message ??
@@ -63,6 +115,7 @@ apiClient.interceptors.response.use(
     return Promise.reject(new Error(message));
   }
 );
+
 
 // ── Generic request helper ────────────────────────────────────────────────────
 
