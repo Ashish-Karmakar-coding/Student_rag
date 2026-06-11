@@ -27,6 +27,9 @@ import { healthRoutes } from "./routes/health.js";
 
 const app = new Hono();
 
+// Intercept favicon requests early to avoid running DB connection middleware
+app.get("/favicon.ico", (c) => c.body(null, 204));
+
 // ── DB connect middleware (serverless-safe) ───────────────────────────────────
 // Ensures MongoDB is connected before every request.
 // connectDB() is idempotent — safe to call on every invocation.

@@ -38,6 +38,10 @@ declare module "next-auth/jwt" {
   }
 }
 
+if (!process.env.AUTH_SECRET && process.env.NEXTAUTH_SECRET) {
+  process.env.AUTH_SECRET = process.env.NEXTAUTH_SECRET;
+}
+
 // DO NOT throw here — a throw at module level crashes the entire auth module,
 // including the error page, producing a 500 instead of a helpful error message.
 // NextAuth itself handles missing secrets with its own Configuration error.
