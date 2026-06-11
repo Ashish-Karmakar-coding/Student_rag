@@ -4,11 +4,14 @@
  * Called by the client immediately after a successful GitHub sign-in.
  * Flow:
  *   1. Get the NextAuth session (server-side)
- *   2. Forward user data to the backend POST /auth/sync with the session token
+ *   2. Forward user data to the EXTERNAL backend POST /auth/sync with the session token
  *   3. Backend verifies the token, upserts the user, returns Set-Cookie
  *   4. Mirror the backend's access_token cookie to this response
  *
  * The client calls this route via a useEffect after session is established.
+ *
+ * IMPORTANT: In production, NEXT_PUBLIC_API_URL must point to the backend's
+ * external URL (e.g. https://api.yourdomain.com).
  */
 
 import { NextResponse } from "next/server";
@@ -16,8 +19,13 @@ import { auth } from "../../../auth";
 import { SignJWT } from "jose";
 import axios, { AxiosResponse } from "axios";
 
-// In Vercel deployment, backend runs as /api routes in the same app
-const API_URL = process.env["NEXT_PUBLIC_API_URL"] ?? "/api";
+// Backend URL — must be the external backend API URL in production
+// e.g. https://api.yourdomain.com
+const BACKEND_URL =
+  process.env["BACKEND_INTERNAL_URL"] ??
+  process.env["NEXT_PUBLIC_API_URL"] ??
+  "http://localhost:8000";
+
 const NEXTAUTH_SECRET = new TextEncoder().encode(process.env["NEXTAUTH_SECRET"]!);
 
 export async function POST(): Promise<NextResponse> {
@@ -43,17 +51,12 @@ export async function POST(): Promise<NextResponse> {
       .setExpirationTime("5m")
       .sign(NEXTAUTH_SECRET);
 
-    // POST to the backend
-    console.log("[sync-user] Sending token to backend:", token.substring(0, 10) + "...");
+    // POST to the external backend
+    console.log("[sync-user] Sending token to backend at:", BACKEND_URL);
 
     let backendRes: AxiosResponse<{ ok: boolean }>;
     try {
-      // Determine full URL for internal API call
-      const syncUrl = API_URL.startsWith('http')
-        ? `${API_URL}/auth/sync`
-        : `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}${API_URL}/auth/sync`;
-
-      backendRes = await axios.post<{ ok: boolean }>(syncUrl, {
+      backendRes = await axios.post<{ ok: boolean }>(`${BACKEND_URL}/auth/sync`, {
         githubId, login, avatarUrl, email: email ?? null
       }, {
         headers: {

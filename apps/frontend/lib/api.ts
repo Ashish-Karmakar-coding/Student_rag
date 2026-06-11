@@ -1,14 +1,14 @@
 /**
  * apps/frontend/lib/api.ts
  *
- * Type-safe Axios-based API client for the Hono backend.
+ * Type-safe Axios-based API client for the separate Hono backend deployment.
  *
  * CORS is handled by Axios via `withCredentials: true` on every request,
  * which sends the access_token cookie to the backend automatically.
  *
  * NEXT_PUBLIC_API_URL must be set in Vercel environment variables:
- *   - Local dev: http://localhost:8000
- *   - Production: https://<your-backend-url>
+ *   - Local dev:   http://localhost:8000
+ *   - Production:  https://api.yourdomain.com  (your backend Vercel URL)
  */
 
 import type {

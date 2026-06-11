@@ -4,10 +4,9 @@ packages:
 
 allowBuilds:
   esbuild: true
-  keytar: true
+  keytar: set this to true or false
   unrs-resolver: true
 
 onlyBuiltDependencies:
   - esbuild
-  - keytar
   - unrs-resolver

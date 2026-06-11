@@ -37,7 +37,7 @@ app.use("*", async (_c, next) => {
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 // In production set ALLOWED_ORIGINS as a comma-separated list, e.g.:
-//   ALLOWED_ORIGINS=https://student-rag.vercel.app,https://kairo.ashishkarmakar.in
+//   ALLOWED_ORIGINS=https://app.yourdomain.com,https://yourdomain.com
 // Falls back to legacy ALLOWED_ORIGIN for backwards compatibility.
 function getAllowedOrigins(): string | string[] {
   if (isDev) {

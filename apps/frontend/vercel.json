@@ -1,11 +1,6 @@
 {
   "version": 2,
-  "installCommand": "pnpm --dir ../.. install --frozen-lockfile",
-  "buildCommand": "pnpm --dir ../.. --filter @study-tutor/shared build && pnpm build",
-  "framework": "nextjs",
-  "functions": {
-    "app/api/**/*.ts": {
-      "maxDuration": 60
-    }
-  }
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "buildCommand": "cd ../../packages/shared && pnpm build && cd ../../apps/frontend && pnpm build",
+  "framework": "nextjs"
 }
