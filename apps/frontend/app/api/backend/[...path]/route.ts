@@ -9,6 +9,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+export const runtime = "edge";
+
 const BACKEND_URL =
   process.env["BACKEND_INTERNAL_URL"] ??
   process.env["NEXT_PUBLIC_API_URL"] ??
@@ -18,7 +20,8 @@ async function proxyRequest(req: NextRequest, { params }: { params: { path: stri
   // Construct the target URL
   const path = params.path.join("/");
   const url = new URL(req.url);
-  const targetUrl = `${BACKEND_URL}/${path}${url.search}`;
+  const baseUrl = BACKEND_URL.replace(/\/$/, ""); // Strip trailing slash
+  const targetUrl = `${baseUrl}/${path}${url.search}`;
 
   // Forward headers, explicitly including cookies
   const headers = new Headers(req.headers);
@@ -31,9 +34,6 @@ async function proxyRequest(req: NextRequest, { params }: { params: { path: stri
       method: req.method,
       headers,
       body: req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined,
-      // Pass duplex for streaming bodies in Node.js 18+ fetch
-      // @ts-ignore
-      duplex: "half",
     });
 
     // Forward the backend response
