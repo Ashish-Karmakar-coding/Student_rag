@@ -31,16 +31,18 @@ export async function connectDB(): Promise<void> {
   }
 
   // Start new connection attempt
+  mongoose.set("bufferCommands", false);
   cachedConnection = mongoose.connect(env.MONGODB_URI, {
-    // Serverless-optimized pool settings
+    // Serverless-optimized settings
     maxPoolSize: 10,
-    minPoolSize: 1, // Lower minimum for faster cold starts
-    serverSelectionTimeoutMS: 10_000,
-    socketTimeoutMS: 45_000,
-    connectTimeoutMS: 10_000,
+    minPoolSize: 0, // Lower pool size to 0 to avoid background retry loops
+    serverSelectionTimeoutMS: 5000, // Fail fast if Atlas is unreachable
+    socketTimeoutMS: 30000,
+    connectTimeoutMS: 5000,
+    bufferCommands: false, // Do not buffer commands if connection is not ready
     // Keep connections alive across invocations
-    maxIdleTimeMS: 60_000,
-  });
+    maxIdleTimeMS: 60000,
+  } as any); // Cast options if Mongoose types don't match exactly
 
   try {
     await cachedConnection;

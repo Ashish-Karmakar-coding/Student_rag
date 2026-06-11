@@ -104,6 +104,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Without this, NextAuth computes /api/auth/callback/github internally,
       // which doesn't match the GitHub OAuth App registration → token exchange fails.
       token: {
+        url: "https://github.com/login/oauth/access_token",
         async request(context: any) {
           const { params, checks, provider } = context;
 
