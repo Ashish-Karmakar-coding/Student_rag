@@ -4,16 +4,21 @@
  * NextAuth v5 (Auth.js) configuration.
  *
  * VERCEL ENV VARS — all of these are required:
- *   AUTH_SECRET          → random 32+ char string
+ *   AUTH_SECRET          → random 32+ char string (same as NEXTAUTH_SECRET)
  *   NEXTAUTH_URL         → https://kairo.ashishkarmakar.in
  *   GITHUB_CLIENT_ID     → from GitHub OAuth App
  *   GITHUB_CLIENT_SECRET → from GitHub OAuth App
  *
  * GITHUB OAUTH APP — Authorization callback URL must be:
- *   https://kairo.ashishkarmakar.in/api/auth/github/callback
+ *   https://kairo.ashishkarmakar.in/api/auth/callback/github
+ *
+ * NOTE: We use NextAuth's standard callback path /api/auth/callback/github.
+ *       The proxy route at /api/auth/github/callback is kept as a safety
+ *       redirect in case GitHub ever hits that path.
  */
 
 import NextAuth from "next-auth";
+import GitHub from "next-auth/providers/github";
 
 declare module "next-auth" {
   interface Session {
@@ -37,13 +42,11 @@ declare module "next-auth/jwt" {
   }
 }
 
+// ── Ensure AUTH_SECRET is set (NextAuth v5 reads this env var directly) ────────
 if (!process.env.AUTH_SECRET && process.env.NEXTAUTH_SECRET) {
   process.env.AUTH_SECRET = process.env.NEXTAUTH_SECRET;
 }
 
-// DO NOT throw here — a throw at module level crashes the entire auth module,
-// including the error page, producing a 500 instead of a helpful error message.
-// NextAuth itself handles missing secrets with its own Configuration error.
 const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 
 // Log initialization diagnostics (presence and lengths only, to protect secrets)
@@ -52,8 +55,6 @@ console.log("[auth] NextAuth Initialization Diagnostics:", {
   secretLength: secret?.length ?? 0,
   hasNextauthUrl: !!process.env.NEXTAUTH_URL,
   nextauthUrl: process.env.NEXTAUTH_URL ?? "not set",
-  hasPublicBaseUrl: !!process.env.NEXT_PUBLIC_BASE_URL,
-  publicBaseUrl: process.env.NEXT_PUBLIC_BASE_URL ?? "not set",
   hasGithubClientId: !!process.env.GITHUB_CLIENT_ID,
   githubClientIdLength: process.env.GITHUB_CLIENT_ID?.length ?? 0,
   hasGithubClientSecret: !!process.env.GITHUB_CLIENT_SECRET,
@@ -74,95 +75,16 @@ if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
   );
 }
 
-// Base URL — must be set to https://kairo.ashishkarmakar.in in Vercel.
-// If missing, defaults to localhost which causes redirect_uri mismatch with GitHub.
-const BASE_URL = (
-  process.env.NEXTAUTH_URL ??
-  process.env.NEXT_PUBLIC_BASE_URL ??
-  "http://localhost:3000"
-).replace(/\/$/, "");
-
-// Must match "Authorization callback URL" in GitHub OAuth App settings exactly.
-const GITHUB_CALLBACK_URL = `${BASE_URL}/api/auth/github/callback`;
-
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret,
   trustHost: true,
+  debug: process.env.NODE_ENV !== "production",
 
   providers: [
-    {
-      id: "github",
-      name: "GitHub",
-      type: "oauth",
-      clientId: process.env.GITHUB_CLIENT_ID ?? "",
-      clientSecret: process.env.GITHUB_CLIENT_SECRET ?? "",
-      authorization: {
-        url: "https://github.com/login/oauth/authorize",
-        params: {
-          scope: "read:user user:email",
-          redirect_uri: GITHUB_CALLBACK_URL,
-        },
-      },
-      token: {
-        url: "https://github.com/login/oauth/access_token",
-        async request(context: any) {
-          const { params, checks, provider } = context;
-
-          console.log("[auth] token exchange → redirect_uri:", GITHUB_CALLBACK_URL);
-
-          const body = new URLSearchParams({
-            client_id: provider.clientId,
-            client_secret: provider.clientSecret,
-            code: params.code,
-            redirect_uri: GITHUB_CALLBACK_URL,
-            grant_type: "authorization_code",
-          });
-
-          if (checks?.code_verifier) {
-            body.set("code_verifier", checks.code_verifier);
-          }
-
-          const response = await fetch(
-            "https://github.com/login/oauth/access_token",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                Accept: "application/json",
-              },
-              body,
-            }
-          );
-
-          if (!response.ok) {
-            const text = await response.text();
-            console.error("[auth] GitHub token exchange failed:", response.status, text);
-            throw new Error(`GitHub token exchange failed: ${response.status}`);
-          }
-
-          const tokens = await response.json();
-
-          if (tokens.error) {
-            console.error("[auth] GitHub token error:", tokens.error, tokens.error_description);
-            throw new Error(`GitHub OAuth error: ${tokens.error} — ${tokens.error_description}`);
-          }
-
-          return { tokens };
-        },
-      },
-      userinfo: "https://api.github.com/user",
-      profile(profile: any) {
-        return {
-          id: profile.id.toString(),
-          name: profile.name ?? profile.login,
-          email: profile.email,
-          image: profile.avatar_url,
-          login: profile.login,
-          avatarUrl: profile.avatar_url,
-        };
-      },
-    },
+    GitHub({
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+    }),
   ],
 
   session: { strategy: "jwt" },
