@@ -19,15 +19,27 @@ import { env } from "./config.js";
 let cachedConnection: Promise<typeof mongoose> | null = null;
 
 export async function connectDB(): Promise<void> {
-  // If already connected, return immediately
-  if (mongoose.connection.readyState === 1) {
+  const state = mongoose.connection.readyState;
+
+  // If already fully connected, return immediately
+  if (state === 1) {
     return;
   }
 
-  // If connection attempt is in progress, wait for it
+  // If the connection has been closed (0 = disconnected, 3 = disconnecting),
+  // we must discard any cached connection promise to trigger a fresh connection.
+  if (state === 0 || state === 3) {
+    cachedConnection = null;
+  }
+
+  // If a connection attempt is currently in progress (state === 2), wait for it.
   if (cachedConnection) {
-    await cachedConnection;
-    return;
+    try {
+      await cachedConnection;
+      return;
+    } catch (err) {
+      cachedConnection = null; // Clear cache on connection failure
+    }
   }
 
   // Start new connection attempt
@@ -42,7 +54,8 @@ export async function connectDB(): Promise<void> {
     bufferCommands: false, // Do not buffer commands if connection is not ready
     // Keep connections alive across invocations
     maxIdleTimeMS: 60000,
-  } as any); // Cast options if Mongoose types don't match exactly
+    family: 4, // Force IPv4 resolution to prevent IPv6 DNS/connection hangs on Vercel
+  } as any);
 
   try {
     await cachedConnection;
