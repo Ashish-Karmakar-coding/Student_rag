@@ -54,9 +54,9 @@ export async function POST(): Promise<NextResponse> {
     // POST to the external backend
     console.log("[sync-user] Sending token to backend at:", BACKEND_URL);
 
-    let backendRes: AxiosResponse<{ ok: boolean }>;
+    let backendRes: AxiosResponse<{ ok: boolean; token?: string }>;
     try {
-      backendRes = await axios.post<{ ok: boolean }>(`${BACKEND_URL}/auth/sync`, {
+      backendRes = await axios.post<{ ok: boolean; token?: string }>(`${BACKEND_URL}/auth/sync`, {
         githubId, login, avatarUrl, email: email ?? null
       }, {
         headers: {
@@ -73,20 +73,21 @@ export async function POST(): Promise<NextResponse> {
     const data = backendRes.data;
     console.log("[sync-user] Backend sync success:", data);
 
-    // Mirror the backend's Set-Cookie header (access_token)
-    const response = NextResponse.json(data);
-
-    // axios stores headers in lowercase
-    const setCookie = backendRes.headers["set-cookie"];
-    if (setCookie) {
-      if (Array.isArray(setCookie)) {
-        setCookie.forEach(cookie => response.headers.append("set-cookie", cookie));
-      } else {
-        response.headers.set("set-cookie", setCookie as string);
-      }
+    // If the backend returns a token, set it explicitly using Next.js cookies API.
+    // This is much more reliable than forwarding Set-Cookie headers via Axios.
+    if (data.token) {
+      const { cookies } = await import("next/headers");
+      const cookieStore = cookies();
+      cookieStore.set("access_token", data.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
     }
 
-    return response;
+    return NextResponse.json(data);
   } catch (err) {
     console.error("[sync-user]", err);
     return NextResponse.json(

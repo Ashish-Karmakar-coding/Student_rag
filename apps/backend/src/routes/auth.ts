@@ -86,6 +86,7 @@ authRoutes.post("/sync", async (c) => {
     console.log("[/auth/sync] Returning success");
     return c.json({
       ok: true,
+      token: backendToken,
       user: {
         githubId: user!.githubId,
         login: user!.login,
