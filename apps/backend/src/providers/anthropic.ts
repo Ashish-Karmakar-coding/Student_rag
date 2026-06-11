@@ -13,10 +13,12 @@ import type { LLMProvider, EmbeddingProvider } from "./base.js";
 import { ProviderError, ProviderAuthError } from "./base.js";
 import { getApiKey } from "./keychain.js";
 
+type AnthropicClient = InstanceType<typeof Anthropic>;
+
 const MAX_TOKENS = 4096;
 
 export class AnthropicProvider implements LLMProvider, EmbeddingProvider {
-  private clientPromise: Promise<Anthropic>;
+  private clientPromise: Promise<AnthropicClient>;
 
   constructor(
     private readonly model: string,
@@ -25,15 +27,15 @@ export class AnthropicProvider implements LLMProvider, EmbeddingProvider {
     this.clientPromise = this.initClient();
   }
 
-  private async initClient(): Promise<Anthropic> {
+  private async initClient(): Promise<AnthropicClient> {
     const apiKey = await getApiKey(this.userId, "anthropic");
     if (!apiKey) {
       throw new ProviderAuthError("anthropic");
     }
-    return new Anthropic({ apiKey });
+    return new Anthropic({ apiKey }) as AnthropicClient;
   }
 
-  private async client(): Promise<Anthropic> {
+  private async client(): Promise<AnthropicClient> {
     return this.clientPromise;
   }
 

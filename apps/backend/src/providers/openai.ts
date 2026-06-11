@@ -8,7 +8,7 @@
  *   LLM:       gpt-4o-mini (default), gpt-4o, gpt-3.5-turbo, etc.
  *   Embedding: text-embedding-3-small (1536 dims) — default
  *
- * API key is retrieved from the OS keychain per-user via keytar.
+ * API key is retrieved per-user from MongoDB (encrypted with AES-256-GCM).
  */
 
 import OpenAI from "openai";
@@ -16,11 +16,14 @@ import type { LLMProvider, EmbeddingProvider } from "./base.js";
 import { ProviderError, ProviderAuthError } from "./base.js";
 import { getApiKey } from "./keychain.js";
 
+// Use InstanceType to get the proper class type from the default export
+type OpenAIClient = InstanceType<typeof OpenAI>;
+
 const EMBED_MODEL_DEFAULT = "text-embedding-3-small";
 const EMBED_BATCH_SIZE = 32;
 
 export class OpenAIProvider implements LLMProvider, EmbeddingProvider {
-  private clientPromise: Promise<OpenAI>;
+  private clientPromise: Promise<OpenAIClient>;
 
   constructor(
     private readonly model: string,
@@ -31,15 +34,15 @@ export class OpenAIProvider implements LLMProvider, EmbeddingProvider {
     this.clientPromise = this.initClient();
   }
 
-  private async initClient(): Promise<OpenAI> {
+  private async initClient(): Promise<OpenAIClient> {
     const apiKey = await getApiKey(this.userId, "openai");
     if (!apiKey) {
       throw new ProviderAuthError("openai");
     }
-    return new OpenAI({ apiKey });
+    return new OpenAI({ apiKey }) as OpenAIClient;
   }
 
-  private async client(): Promise<OpenAI> {
+  private async client(): Promise<OpenAIClient> {
     return this.clientPromise;
   }
 
@@ -119,8 +122,10 @@ export class OpenAIProvider implements LLMProvider, EmbeddingProvider {
         });
 
         // Preserve order — API returns in same order as input
-        const sorted = response.data.sort((a, b) => a.index - b.index);
-        results.push(...sorted.map((d) => d.embedding));
+        const sorted = response.data.sort(
+          (a: { index: number }, b: { index: number }) => a.index - b.index
+        );
+        results.push(...sorted.map((d: { embedding: number[] }) => d.embedding));
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         if (msg.includes("401") || msg.toLowerCase().includes("api key")) {
