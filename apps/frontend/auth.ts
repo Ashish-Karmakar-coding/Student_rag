@@ -14,7 +14,6 @@
  */
 
 import NextAuth from "next-auth";
-import GitHub from "next-auth/providers/github";
 
 declare module "next-auth" {
   interface Session {
@@ -92,21 +91,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
 
   providers: [
-    GitHub({
+    {
+      id: "github",
+      name: "GitHub",
+      type: "oauth",
       clientId: process.env.GITHUB_CLIENT_ID ?? "",
       clientSecret: process.env.GITHUB_CLIENT_SECRET ?? "",
-
-      // Send our custom callback URL to GitHub in the authorization request.
       authorization: {
+        url: "https://github.com/login/oauth/authorize",
         params: {
           scope: "read:user user:email",
           redirect_uri: GITHUB_CALLBACK_URL,
         },
       },
-
-      // Override token exchange to use our callback URL as redirect_uri.
-      // Without this, NextAuth computes /api/auth/callback/github internally,
-      // which doesn't match the GitHub OAuth App registration → token exchange fails.
       token: {
         url: "https://github.com/login/oauth/access_token",
         async request(context: any) {
@@ -154,7 +151,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return { tokens };
         },
       },
-    }),
+      userinfo: "https://api.github.com/user",
+      profile(profile: any) {
+        return {
+          id: profile.id.toString(),
+          name: profile.name ?? profile.login,
+          email: profile.email,
+          image: profile.avatar_url,
+          login: profile.login,
+          avatarUrl: profile.avatar_url,
+        };
+      },
+    },
   ],
 
   session: { strategy: "jwt" },
