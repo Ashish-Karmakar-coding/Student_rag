@@ -25,8 +25,15 @@ declare module "hono" {
 }
 
 export const authMiddleware = createMiddleware(async (c, next) => {
-  // 1. Extract token from cookie
-  const token = getCookie(c, ACCESS_TOKEN_COOKIE);
+  // 1. Extract token from cookie or Authorization header
+  let token = getCookie(c, ACCESS_TOKEN_COOKIE);
+
+  if (!token) {
+    const authHeader = c.req.header("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      token = authHeader.substring(7).trim();
+    }
+  }
 
   if (!token) {
     console.error("[authMiddleware] Unauthorized - missing token. Cookies:", c.req.header("cookie"));

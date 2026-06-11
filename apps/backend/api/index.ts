@@ -10,16 +10,10 @@
  * Max duration: 60s (configured in vercel.json for AI generation requests).
  */
 
-import { handle } from "@hono/node-server/vercel";
+import { handle } from "hono/vercel";
 // @ts-ignore — Vercel bundles this from source; .js extension is correct for ESM
 import app from "../src/app.js";
 
 export const runtime = "nodejs";
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
 
 export default handle(app);

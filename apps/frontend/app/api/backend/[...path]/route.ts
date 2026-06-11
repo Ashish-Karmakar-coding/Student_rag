@@ -28,6 +28,12 @@ async function proxyRequest(req: NextRequest, { params }: { params: { path: stri
   // Next.js strips the host header when using fetch, but we can explicitly remove it just in case
   headers.delete("host");
 
+  // Extract access_token from incoming request cookies and append as Authorization header
+  const accessToken = req.cookies.get("access_token")?.value;
+  if (accessToken && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+
   // Fetch from the backend
   try {
     const response = await fetch(targetUrl, {
