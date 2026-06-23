@@ -235,7 +235,8 @@ After deployment, verify:
 - Requires HTTPS and matching domain setup
 
 **5. API Entry Point:**
-- Backend: `api/index.ts` → `hono/vercel` adapter
+- Backend: `api/index.ts` → `@hono/node-server` getRequestListener (NOT `hono/vercel`)
+- Uses Node.js handler format `(IncomingMessage, ServerResponse)` for reliable request conversion
 - All requests rewritten to this single function via `vercel.json` rewrites
 
 #### Performance Considerations
