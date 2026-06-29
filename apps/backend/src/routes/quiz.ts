@@ -135,6 +135,22 @@ quizRoutes.get("/next", async (c) => {
     }
 
     // 2. Retrieve relevant chunks (Pinecone)
+    const embedCfg = { 
+      provider: user.providerConfig.embedProvider ?? user.providerConfig.provider, 
+      ...(user.providerConfig.ollamaUrl ? { ollamaUrl: user.providerConfig.ollamaUrl } : {})
+    };
+    if (!(await isProviderReachable(embedCfg))) {
+      return c.json(
+        {
+          error: "Embedding provider unavailable",
+          message:
+            `Embedding provider "${embedCfg.provider}" is not reachable from the server. ` +
+            `If deployed to the cloud, go to Settings and switch to OpenAI or Pinecone.`,
+        },
+        503
+      );
+    }
+
     const embedder = getQueryEmbeddingProvider({
       ...user.providerConfig,
       userId: user.githubId,
@@ -145,6 +161,9 @@ quizRoutes.get("/next", async (c) => {
       const result = await retrieve(targetConcept, user.githubId, embedder, fileName);
       chunks = result.chunks;
     } catch (retrieveErr) {
+      if (retrieveErr instanceof ProviderAuthError || retrieveErr instanceof ProviderError) {
+        throw retrieveErr;
+      }
       const msg = retrieveErr instanceof Error ? retrieveErr.message : String(retrieveErr);
       console.error("[quiz/next] Pinecone retrieve failed:", msg);
       return c.json(
