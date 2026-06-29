@@ -15,13 +15,13 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@study-tutor/shared": "workspace:*",
     "@anthropic-ai/sdk": "^0.30.0",
     "@hono/node-server": "^1.12.0",
-    "@langchain/langgraph": "^0.2.0",
     "@langchain/core": "^0.3.0",
+    "@langchain/langgraph": "^0.2.0",
     "@langchain/textsplitters": "^0.1.0",
-    "@pinecone-database/pinecone": "^3.0.3",
+    "@pinecone-database/pinecone": "^8.0.0",
+    "@study-tutor/shared": "workspace:*",
     "cohere-ai": "^7.14.0",
     "dotenv": "^16.4.5",
     "hono": "^4.4.0",
@@ -33,8 +33,8 @@
     "pdf-parse": "^1.1.1",
     "uuid": "^10.0.0",
     "wink-bm25-text-search": "^3.1.2",
-    "wink-nlp": "^2.3.2",
     "wink-eng-lite-web-model": "^1.7.1",
+    "wink-nlp": "^2.3.2",
     "zod": "^3.23.8"
   },
   "devDependencies": {

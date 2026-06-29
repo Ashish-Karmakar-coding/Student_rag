@@ -68,11 +68,11 @@ export class PineconeEmbeddingProvider implements EmbeddingProvider {
 
       let response;
       try {
-        response = await pc.inference.embed(
-          this.model,
-          batch,
-          { inputType: this.inputType, truncate: "END" }
-        );
+        response = await pc.inference.embed({
+          model: this.model,
+          inputs: batch,
+          parameters: { inputType: this.inputType, truncate: "END" }
+        });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         throw new ProviderError(
@@ -83,14 +83,15 @@ export class PineconeEmbeddingProvider implements EmbeddingProvider {
       }
 
       // The response data array is in the same order as the input
-      for (const embedding of response.data) {
-        if (embedding.values == null) {
+      for (const rawEmbedding of response.data) {
+        const values = (rawEmbedding as any).values as number[] | undefined;
+        if (values == null) {
           throw new ProviderError(
             "pinecone",
             `Received null embedding from Pinecone for model "${this.model}"`
           );
         }
-        results.push(embedding.values);
+        results.push(values);
       }
     }
 
