@@ -17,7 +17,7 @@ import { authMiddleware } from "../auth/middleware.js";
 import { Mastery, calcNewMasteryScore } from "../models/Mastery.js";
 import { IngestJob, type IIngestFile } from "../models/IngestJob.js";
 import { retrieve } from "../retrieval/retrieve.js";
-import { getQueryEmbeddingProvider, getLLMProvider } from "../providers/factory.js";
+import { getQueryEmbeddingProvider, getLLMProvider, isProviderReachable } from "../providers/factory.js";
 import {
   buildSocraticPrompt,
   SOCRATIC_SYSTEM,
@@ -145,39 +145,63 @@ quizRoutes.get("/next", async (c) => {
     );
   }
 
-  // 3. Generate Socratic question
-  const llm = getLLMProvider({ ...user.providerConfig, userId: user.githubId });
-  const prompt = buildSocraticPrompt(targetConcept, masteryBefore, chunks);
-  const rawResponse = await llm.complete(prompt, SOCRATIC_SYSTEM);
-  const { question, hint } = parseSocraticResponse(rawResponse);
+  // 3. Generate Socratic question via LLM
+  const cfg = { ...user.providerConfig, userId: user.githubId };
+  const llmReachable = await isProviderReachable(cfg);
 
-  // 4. Store in pending cache
-  const questionId = uuidv4();
-  pendingQuestions.set(questionId, {
-    userId: user.githubId,
-    concept: targetConcept,
-    question,
-    hint,
-    masteryBefore,
-    chunks,
-    expiresAt: Date.now() + QUESTION_TTL_MS,
-  });
+  if (!llmReachable) {
+    return c.json(
+      {
+        error: "LLM provider unavailable",
+        message:
+          `Quiz generation requires an LLM. Your current provider (${cfg.provider}) ` +
+          `is not reachable from the server. Go to Settings and configure OpenAI or Anthropic.`,
+      },
+      503
+    );
+  }
 
-  const difficulty = getDifficulty(masteryBefore);
+  try {
+    const llm = getLLMProvider(cfg);
+    const prompt = buildSocraticPrompt(targetConcept, masteryBefore, chunks);
+    const rawResponse = await llm.complete(prompt, SOCRATIC_SYSTEM);
+    const { question, hint } = parseSocraticResponse(rawResponse);
 
-  return c.json({
-    questionId,
-    question,
-    concept: targetConcept,
-    masteryBefore,
-    difficulty,
-    hint,
-    sources: chunks.slice(0, 3).map((ch) => ({
-      fileName: ch.metadata?.fileName ?? "",
-      chunkIndex: ch.metadata?.chunkIndex ?? 0,
-      page: ch.metadata?.page,
-    })),
-  });
+    // 4. Store in pending cache
+    const questionId = uuidv4();
+    pendingQuestions.set(questionId, {
+      userId: user.githubId,
+      concept: targetConcept,
+      question,
+      hint,
+      masteryBefore,
+      chunks,
+      expiresAt: Date.now() + QUESTION_TTL_MS,
+    });
+
+    const difficulty = getDifficulty(masteryBefore);
+
+    return c.json({
+      questionId,
+      question,
+      concept: targetConcept,
+      masteryBefore,
+      difficulty,
+      hint,
+      sources: chunks.slice(0, 3).map((ch) => ({
+        fileName: ch.metadata?.fileName ?? "",
+        chunkIndex: ch.metadata?.chunkIndex ?? 0,
+        page: ch.metadata?.page,
+      })),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "LLM error";
+    console.error("[quiz/next] LLM error:", msg);
+    return c.json(
+      { error: "Failed to generate quiz question", detail: msg },
+      502
+    );
+  }
 });
 
 // ── POST /quiz/answer ─────────────────────────────────────────────────────────
@@ -214,13 +238,35 @@ quizRoutes.post("/answer", async (c) => {
   pendingQuestions.delete(questionId);
 
   // 1. Evaluate answer
-  const llm = getLLMProvider({ ...user.providerConfig, userId: user.githubId });
-  const evalResult = await evaluateAnswer(
-    pending.question,
-    answer,
-    pending.chunks,
-    llm
-  );
+  const cfg = { ...user.providerConfig, userId: user.githubId };
+  const llmReachable = await isProviderReachable(cfg);
+
+  if (!llmReachable) {
+    return c.json(
+      {
+        error: "LLM provider unavailable",
+        message:
+          `Answer evaluation requires an LLM. Your provider (${cfg.provider}) is not ` +
+          `reachable from the server. Go to Settings and configure OpenAI or Anthropic.`,
+      },
+      503
+    );
+  }
+
+  let evalResult: { score: number; feedback: string; explanation: string };
+  try {
+    const llm = getLLMProvider(cfg);
+    evalResult = await evaluateAnswer(
+      pending.question,
+      answer,
+      pending.chunks,
+      llm
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "LLM error";
+    console.error("[quiz/answer] evaluation failed:", msg);
+    return c.json({ error: "Failed to evaluate answer", detail: msg }, 502);
+  }
 
   // 2. Update mastery
   const oldScore = pending.masteryBefore;

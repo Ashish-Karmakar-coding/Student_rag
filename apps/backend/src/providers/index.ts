@@ -15,6 +15,7 @@ export {
   getLLMProvider,
   getEmbeddingProvider,
   getQueryEmbeddingProvider,
+  isProviderReachable,
   testProvider,
   type ProviderFactoryConfig,
 } from "./factory.js";

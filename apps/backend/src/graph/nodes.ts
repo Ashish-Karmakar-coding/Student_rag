@@ -11,7 +11,7 @@
 
 import { retrieve } from "../retrieval/retrieve.js";
 import { findWeakestConcept } from "../retrieval/masteryWeighter.js";
-import { getLLMProvider, getQueryEmbeddingProvider } from "../providers/factory.js";
+import { getLLMProvider, getQueryEmbeddingProvider, isProviderReachable } from "../providers/factory.js";
 import {
   EXPLAIN_SYSTEM,
   buildExplainPrompt,
@@ -121,12 +121,29 @@ export async function buildPrompt(state: NodeInput): Promise<NodeOutput> {
  * The streamCallback is injected by the /chat route before graph invocation.
  */
 export async function generate(state: NodeInput): Promise<NodeOutput> {
+  const reachable = await isProviderReachable(state.providerConfig);
+  if (!reachable) {
+    // Stream a user-visible error message instead of crashing
+    const errMsg =
+      `\n\n⚠️ LLM provider "${state.providerConfig.provider}" is not reachable from the server. ` +
+      `Please go to **Settings** and switch to OpenAI or Anthropic for cloud-hosted responses.`;
+    state.streamCallback(errMsg);
+    return { responseText: errMsg };
+  }
+
   const llm = getLLMProvider(state.providerConfig);
   let responseText = "";
 
-  for await (const token of llm.stream(state.promptBuilt, state.systemPrompt)) {
-    state.streamCallback(token);
-    responseText += token;
+  try {
+    for await (const token of llm.stream(state.promptBuilt, state.systemPrompt)) {
+      state.streamCallback(token);
+      responseText += token;
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "LLM stream failed";
+    console.error("[nodes/generate] stream error:", msg);
+    state.streamCallback(`\n\n⚠️ Generation failed: ${msg}`);
+    responseText += `\n\n⚠️ Generation failed: ${msg}`;
   }
 
   return { responseText };

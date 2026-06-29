@@ -162,3 +162,27 @@ export async function testProvider(
     };
   }
 }
+
+// ── Provider reachability check ───────────────────────────────────────────────
+
+/**
+ * Returns true if the LLM endpoint appears reachable.
+ * - Cloud providers (openai, anthropic) always return true.
+ * - Ollama: pings /api/tags with a 2s timeout.
+ * Used as a pre-flight check to fail fast when Ollama is not running.
+ */
+export async function isProviderReachable(cfg: {
+  provider: string;
+  ollamaUrl?: string;
+}): Promise<boolean> {
+  if (cfg.provider !== "ollama") return true;
+  const base = (cfg.ollamaUrl ?? "http://localhost:11434").replace(/\/$/, "");
+  try {
+    const res = await fetch(`${base}/api/tags`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
