@@ -43,6 +43,7 @@ export default function SettingsPage() {
   const [provider, setProvider] = useState<Provider>("ollama");
   const [model, setModel] = useState("llama3");
   const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
+  const [embedProvider, setEmbedProvider] = useState<Provider | "pinecone">("pinecone");
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [keyStored, setKeyStored] = useState(false);
@@ -58,6 +59,7 @@ export default function SettingsPage() {
         setProvider(s.provider as Provider);
         setModel(s.model);
         setOllamaUrl(s.ollamaUrl ?? "http://localhost:11434");
+        setEmbedProvider((s.embedProvider as Provider | "pinecone") ?? "pinecone");
         setKeyStored(s.keyStored);
       })
       .catch(() => toast.error("Failed to load settings"))
@@ -68,7 +70,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await patchSettings({
-        providerConfig: { provider, model, ollamaUrl },
+        providerConfig: { provider, model, ollamaUrl, embedProvider },
       });
       toast.success("Settings saved!");
       setTestResult(null);
@@ -250,19 +252,27 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Embedding — info only */}
+        {/* Embedding Provider */}
         <div className="bg-surface-raised border border-border-subtle rounded-lg p-6">
-          <label className="text-[10px] font-label-caps text-text-muted mb-3 block">Embeddings</label>
+          <label className="text-[10px] font-label-caps text-text-muted mb-3 block">Embedding Provider</label>
+          <select
+            id="embed-provider-select"
+            value={embedProvider}
+            onChange={(e) => setEmbedProvider(e.target.value as Provider | "pinecone")}
+            className="input-field mb-3"
+          >
+            <option value="pinecone">Pinecone (llama-text-embed-v2)</option>
+            <option value="openai">OpenAI (text-embedding-3-small)</option>
+            <option value="ollama">Ollama (nomic-embed-text)</option>
+          </select>
           <div className="flex items-start gap-3 p-3 rounded bg-primary/5 border border-primary/15">
             <div className="mt-0.5 w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-              <span className="text-[9px] text-primary font-bold">✓</span>
+              <span className="text-[9px] text-primary font-bold">i</span>
             </div>
             <div>
-              <p className="text-xs font-semibold text-text-primary mb-0.5">Pinecone Inference API</p>
+              <p className="text-xs font-semibold text-text-primary mb-0.5">Embeddings Note</p>
               <p className="text-[10px] font-label-mono text-text-muted">
-                Embeddings are handled automatically using{" "}
-                <span className="text-primary">llama-text-embed-v2</span> (1024-dim) via Pinecone —
-                no extra API key or configuration needed.
+                If Pinecone returns a 404 error, select OpenAI here. Make sure you have saved your OpenAI API key above!
               </p>
             </div>
           </div>

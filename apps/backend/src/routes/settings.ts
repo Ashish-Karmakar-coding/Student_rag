@@ -66,9 +66,8 @@ settingsRoutes.patch("/", async (c) => {
         "providerConfig.provider": providerConfig.provider,
         "providerConfig.model": providerConfig.model,
         "providerConfig.ollamaUrl": providerConfig.ollamaUrl ?? "http://localhost:11434",
-        // Embedding is always Pinecone — not user-configurable
-        "providerConfig.embedProvider": "pinecone",
-        "providerConfig.embedModel": "llama-text-embed-v2",
+        "providerConfig.embedProvider": providerConfig.embedProvider ?? "pinecone",
+        "providerConfig.embedModel": providerConfig.embedProvider === "openai" ? "text-embedding-3-small" : (providerConfig.embedProvider === "ollama" ? "nomic-embed-text" : "llama-text-embed-v2"),
       },
     }
   );
