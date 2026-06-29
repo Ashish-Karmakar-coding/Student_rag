@@ -75,6 +75,15 @@ export class PineconeEmbeddingProvider implements EmbeddingProvider {
         });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
+        
+        // Pinecone Inference API returns 404 for legacy Pod-based projects
+        if (message.includes("404")) {
+          throw new ProviderError(
+            "pinecone",
+            `Inference API embed failed (404). Your Pinecone project likely uses a legacy Pod-based index (e.g., gcp-starter). The Inference API requires a Serverless index. Please create a new Serverless project in Pinecone and update your API key.`
+          );
+        }
+
         throw new ProviderError(
           "pinecone",
           `Inference API embed failed: ${message}`,
