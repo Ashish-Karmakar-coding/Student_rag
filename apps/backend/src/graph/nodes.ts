@@ -59,7 +59,7 @@ export async function classifyIntent(state: NodeInput): Promise<NodeOutput> {
 export async function retrieveChunks(state: NodeInput): Promise<NodeOutput> {
   // Check if embedding provider is reachable (e.g. catch local Ollama on Vercel)
   const embedCfg = { 
-    provider: state.providerConfig.embedProvider ?? state.providerConfig.provider, 
+    provider: state.providerConfig.embedProvider ?? "pinecone", 
     ...(state.providerConfig.ollamaUrl ? { ollamaUrl: state.providerConfig.ollamaUrl } : {})
   };
   if (!(await isProviderReachable(embedCfg))) {

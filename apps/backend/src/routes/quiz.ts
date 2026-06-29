@@ -136,7 +136,7 @@ quizRoutes.get("/next", async (c) => {
 
     // 2. Retrieve relevant chunks (Pinecone)
     const embedCfg = { 
-      provider: user.providerConfig.embedProvider ?? user.providerConfig.provider, 
+      provider: user.providerConfig.embedProvider ?? "pinecone", 
       ...(user.providerConfig.ollamaUrl ? { ollamaUrl: user.providerConfig.ollamaUrl } : {})
     };
     if (!(await isProviderReachable(embedCfg))) {

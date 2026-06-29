@@ -89,7 +89,7 @@ function _buildEmbeddingProvider(
   cfg: ProviderFactoryConfig,
   inputType: "passage" | "query"
 ): EmbeddingProvider {
-  const ep = cfg.embedProvider ?? cfg.provider;
+  const ep = cfg.embedProvider ?? "pinecone";
 
   // ── Pinecone Inference API ────────────────────────────────────────────────
   if (ep === "pinecone") {
