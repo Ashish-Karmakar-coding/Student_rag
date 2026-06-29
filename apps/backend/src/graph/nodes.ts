@@ -57,17 +57,6 @@ export async function classifyIntent(state: NodeInput): Promise<NodeOutput> {
  * Returns retrievedChunks + masteryContext together to avoid a double DB query.
  */
 export async function retrieveChunks(state: NodeInput): Promise<NodeOutput> {
-  // Check if embedding provider is reachable (e.g. catch local Ollama on Vercel)
-  const embedCfg = { 
-    provider: state.providerConfig.embedProvider ?? "pinecone", 
-    ...(state.providerConfig.ollamaUrl ? { ollamaUrl: state.providerConfig.ollamaUrl } : {})
-  };
-  if (!(await isProviderReachable(embedCfg))) {
-    throw new Error(
-      `Embedding provider "${embedCfg.provider}" is not reachable from the server. ` +
-      `If deployed to the cloud, go to Settings and switch to OpenAI or Pinecone.`
-    );
-  }
 
   const embedder = getQueryEmbeddingProvider(state.providerConfig);
 

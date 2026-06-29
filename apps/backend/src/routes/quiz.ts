@@ -135,18 +135,6 @@ quizRoutes.get("/next", async (c) => {
     }
 
     // 2. Retrieve relevant chunks (Pinecone)
-    const embedCfg = { 
-      provider: user.providerConfig.embedProvider ?? "pinecone", 
-      ...(user.providerConfig.ollamaUrl ? { ollamaUrl: user.providerConfig.ollamaUrl } : {})
-    };
-    if (!(await isProviderReachable(embedCfg))) {
-      return c.json(
-        {
-          error: `Embedding provider unavailable: "${embedCfg.provider}" is not reachable from the server. If deployed to the cloud, go to Settings and switch to OpenAI or Pinecone.`,
-        },
-        503
-      );
-    }
 
     const embedder = getQueryEmbeddingProvider({
       ...user.providerConfig,

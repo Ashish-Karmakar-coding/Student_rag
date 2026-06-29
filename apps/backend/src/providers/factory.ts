@@ -89,7 +89,8 @@ function _buildEmbeddingProvider(
   cfg: ProviderFactoryConfig,
   inputType: "passage" | "query"
 ): EmbeddingProvider {
-  const ep = cfg.embedProvider ?? "pinecone";
+  // Force Pinecone for all embeddings, ignoring any stale config from the DB
+  const ep = "pinecone";
 
   // ── Pinecone Inference API ────────────────────────────────────────────────
   if (ep === "pinecone") {
