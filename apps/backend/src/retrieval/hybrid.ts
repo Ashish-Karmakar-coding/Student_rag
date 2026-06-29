@@ -16,6 +16,7 @@
 import { getPineconeIndex } from "../ingestion/embedder.js";
 import type { EmbeddingProvider } from "../providers/base.js";
 import type { ChunkMetadata } from "../ingestion/embedder.js";
+export { getQueryEmbeddingProvider } from "../providers/factory.js";
 
 // Wink packages use CommonJS — import with createRequire for ESM compatibility
 import { createRequire } from "module";

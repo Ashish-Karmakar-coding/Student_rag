@@ -13,6 +13,7 @@
 import { OllamaProvider } from "./ollama.js";
 import { OpenAIProvider } from "./openai.js";
 import { AnthropicProvider } from "./anthropic.js";
+import { PineconeEmbeddingProvider } from "./pinecone.js";
 import type { LLMProvider, EmbeddingProvider } from "./base.js";
 import { ProviderError } from "./base.js";
 
@@ -22,7 +23,7 @@ export interface ProviderFactoryConfig {
   provider: "ollama" | "openai" | "anthropic";
   model: string;
   ollamaUrl?: string;
-  embedProvider?: string;      // "ollama" | "openai"
+  embedProvider?: string;      // "ollama" | "openai" | "pinecone"
   embedModel?: string;
   userId?: string;             // required for cloud providers
 }
@@ -69,18 +70,43 @@ export function getLLMProvider(cfg: ProviderFactoryConfig): LLMProvider {
  * 4. Otherwise: use the same provider as the LLM
  */
 export function getEmbeddingProvider(cfg: ProviderFactoryConfig): EmbeddingProvider {
+  return _buildEmbeddingProvider(cfg, "passage");
+}
+
+/**
+ * Returns an EmbeddingProvider pre-configured for query-time retrieval.
+ * For asymmetric models (e.g. llama-text-embed-v2) this sets inputType="query"
+ * so query vectors are in the correct embedding space relative to passages.
+ */
+export function getQueryEmbeddingProvider(cfg: ProviderFactoryConfig): EmbeddingProvider {
+  return _buildEmbeddingProvider(cfg, "query");
+}
+
+/**
+ * Internal builder — shared by getEmbeddingProvider and getQueryEmbeddingProvider.
+ */
+function _buildEmbeddingProvider(
+  cfg: ProviderFactoryConfig,
+  inputType: "passage" | "query"
+): EmbeddingProvider {
   const ep = cfg.embedProvider ?? cfg.provider;
+
+  // ── Pinecone Inference API ────────────────────────────────────────────────
+  if (ep === "pinecone") {
+    return new PineconeEmbeddingProvider(
+      cfg.embedModel ?? "llama-text-embed-v2",
+      inputType
+    );
+  }
 
   // Anthropic has no embeddings — always reroute
   if (cfg.provider === "anthropic" && ep === "anthropic") {
     console.warn(
       "[factory] Anthropic selected as embedProvider — falling back to " +
-      "OllamaProvider(nomic-embed-text). Set embedProvider='openai' to use OpenAI embeddings."
+      "PineconeEmbeddingProvider(llama-text-embed-v2). " +
+      "Set embedProvider='pinecone' or 'openai' to be explicit."
     );
-    return new OllamaProvider(
-      cfg.embedModel ?? "nomic-embed-text",
-      cfg.ollamaUrl
-    );
+    return new PineconeEmbeddingProvider("llama-text-embed-v2", inputType);
   }
 
   switch (ep) {
@@ -102,15 +128,12 @@ export function getEmbeddingProvider(cfg: ProviderFactoryConfig): EmbeddingProvi
 
     case "anthropic":
       // Should have been caught above, but handle defensively
-      return new OllamaProvider(
-        cfg.embedModel ?? "nomic-embed-text",
-        cfg.ollamaUrl
-      );
+      return new PineconeEmbeddingProvider("llama-text-embed-v2", inputType);
 
     default:
       throw new ProviderError(
         "unknown",
-        `Unknown embedProvider: ${String(ep)}. Use 'ollama' or 'openai'.`
+        `Unknown embedProvider: ${String(ep)}. Use 'pinecone', 'ollama', or 'openai'.`
       );
   }
 }

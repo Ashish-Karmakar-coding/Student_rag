@@ -12,7 +12,7 @@ import { z } from "zod";
 
 export const ProviderSchema = z.enum(["ollama", "openai", "anthropic"]);
 
-export const EmbedProviderSchema = z.enum(["ollama", "openai"]);
+export const EmbedProviderSchema = z.enum(["ollama", "openai", "pinecone"]);
 
 export const ChatModeSchema = z.enum(["explain", "quiz"]);
 

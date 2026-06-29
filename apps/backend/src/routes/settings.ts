@@ -66,8 +66,8 @@ settingsRoutes.patch("/", async (c) => {
         "providerConfig.provider": providerConfig.provider,
         "providerConfig.model": providerConfig.model,
         "providerConfig.ollamaUrl": providerConfig.ollamaUrl ?? "http://localhost:11434",
-        "providerConfig.embedProvider": providerConfig.embedProvider ?? providerConfig.provider,
-        "providerConfig.embedModel": providerConfig.embedModel ?? "nomic-embed-text",
+        "providerConfig.embedProvider": providerConfig.embedProvider ?? "pinecone",
+        "providerConfig.embedModel": providerConfig.embedModel ?? "llama-text-embed-v2",
       },
     }
   );

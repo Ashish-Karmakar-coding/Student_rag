@@ -11,7 +11,7 @@
 
 import { retrieve } from "../retrieval/retrieve.js";
 import { findWeakestConcept } from "../retrieval/masteryWeighter.js";
-import { getLLMProvider, getEmbeddingProvider } from "../providers/factory.js";
+import { getLLMProvider, getQueryEmbeddingProvider } from "../providers/factory.js";
 import {
   EXPLAIN_SYSTEM,
   buildExplainPrompt,
@@ -57,7 +57,7 @@ export async function classifyIntent(state: NodeInput): Promise<NodeOutput> {
  * Returns retrievedChunks + masteryContext together to avoid a double DB query.
  */
 export async function retrieveChunks(state: NodeInput): Promise<NodeOutput> {
-  const embedder = getEmbeddingProvider(state.providerConfig);
+  const embedder = getQueryEmbeddingProvider(state.providerConfig);
 
   const { chunks, masteryContext } = await retrieve(
     state.query,

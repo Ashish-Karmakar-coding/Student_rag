@@ -9,10 +9,12 @@ export { ProviderError, ProviderTimeoutError, ProviderAuthError } from "./base.j
 export { OllamaProvider } from "./ollama.js";
 export { OpenAIProvider } from "./openai.js";
 export { AnthropicProvider } from "./anthropic.js";
+export { PineconeEmbeddingProvider } from "./pinecone.js";
 
 export {
   getLLMProvider,
   getEmbeddingProvider,
+  getQueryEmbeddingProvider,
   testProvider,
   type ProviderFactoryConfig,
 } from "./factory.js";

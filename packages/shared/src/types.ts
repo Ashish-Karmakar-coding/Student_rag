@@ -9,7 +9,7 @@
 
 export type Provider = "ollama" | "openai" | "anthropic";
 
-export type EmbedProvider = "ollama" | "openai";
+export type EmbedProvider = "ollama" | "openai" | "pinecone";
 
 export type ChatMode = "explain" | "quiz";
 

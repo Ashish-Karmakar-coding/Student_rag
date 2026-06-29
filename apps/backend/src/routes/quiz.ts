@@ -17,7 +17,7 @@ import { authMiddleware } from "../auth/middleware.js";
 import { Mastery, calcNewMasteryScore } from "../models/Mastery.js";
 import { IngestJob, type IIngestFile } from "../models/IngestJob.js";
 import { retrieve } from "../retrieval/retrieve.js";
-import { getEmbeddingProvider, getLLMProvider } from "../providers/factory.js";
+import { getQueryEmbeddingProvider, getLLMProvider } from "../providers/factory.js";
 import {
   buildSocraticPrompt,
   SOCRATIC_SYSTEM,
@@ -131,7 +131,7 @@ quizRoutes.get("/next", async (c) => {
   }
 
   // 2. Retrieve relevant chunks for this concept
-  const embedder = getEmbeddingProvider({
+  const embedder = getQueryEmbeddingProvider({
     ...user.providerConfig,
     userId: user.githubId,
   });

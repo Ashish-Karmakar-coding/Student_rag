@@ -48,8 +48,8 @@ const ProviderConfigSchema = new Schema(
     model: { type: String, default: "llama3" },
     ollamaUrl: { type: String, default: "http://localhost:11434" },
     keyStored: { type: Boolean, default: false },
-    embedProvider: { type: String, default: "ollama" },
-    embedModel: { type: String, default: "nomic-embed-text" },
+    embedProvider: { type: String, default: "pinecone" },
+    embedModel: { type: String, default: "llama-text-embed-v2" },
   },
   { _id: false } // embedded subdoc, no separate _id
 );
