@@ -24,6 +24,40 @@ import { Mastery } from "../models/Mastery.js";
 import { User } from "../models/User.js";
 import { getLLMProvider, getEmbeddingProvider } from "../providers/factory.js";
 import type { IUser } from "../models/User.js";
+import type { TaggedChunk } from "./conceptTagger.js";
+import type { Chunk } from "./chunker.js";
+
+/**
+ * Quick pre-flight check: can we reach the LLM endpoint?
+ * Used to skip expensive timeout loops when Ollama is not running in production.
+ * Returns true if the provider appears reachable, false if not.
+ */
+async function isProviderReachable(cfg: {
+  provider: string;
+  ollamaUrl?: string;
+}): Promise<boolean> {
+  if (cfg.provider !== "ollama") return true; // cloud providers are always "reachable"
+  const ollamaUrl = (cfg.ollamaUrl ?? "http://localhost:11434").replace(/\/$/, "");
+  try {
+    const res = await fetch(`${ollamaUrl}/api/tags`, {
+      signal: AbortSignal.timeout(2000), // 2s ping — if Ollama isn't there it fails immediately
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fallback tag extraction used when the LLM is unavailable.
+ * Extracts simple keywords from the first 200 chars of each chunk.
+ */
+function fallbackTagChunks(chunks: Chunk[]): TaggedChunk[] {
+  return chunks.map((chunk) => ({
+    ...chunk,
+    conceptTags: ["general"],
+  }));
+}
 
 // ── Uploaded file shape (from Hono multipart parser) ─────────────────────────
 
@@ -78,8 +112,19 @@ async function processFile(
     userId: user.githubId,
   };
 
-  const llm = getLLMProvider(providerCfg);
-  const taggedChunks = await tagChunks(chunks, llm);
+  const llmAvailable = await isProviderReachable(providerCfg);
+
+  let taggedChunks;
+  if (llmAvailable) {
+    const llm = getLLMProvider(providerCfg);
+    taggedChunks = await tagChunks(chunks, llm);
+  } else {
+    console.warn(
+      `[pipeline] ${fileName}: LLM (${providerCfg.provider}) not reachable — using fallback tags. ` +
+      `Configure OpenAI or Anthropic in Settings for better concept extraction.`
+    );
+    taggedChunks = fallbackTagChunks(chunks);
+  }
 
   const subject = inferSubject(taggedChunks);
   const uniqueConcepts = collectUniqueConcepts(taggedChunks);

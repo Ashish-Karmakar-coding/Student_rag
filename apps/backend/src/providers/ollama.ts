@@ -14,7 +14,9 @@
 import type { LLMProvider, EmbeddingProvider } from "./base.js";
 import { ProviderError, ProviderTimeoutError } from "./base.js";
 
-const TIMEOUT_MS = 120_000;
+// Fail fast in production where Ollama is not running.
+// tagChunk() catches errors and falls back to ["general"] automatically.
+const TIMEOUT_MS = 8_000;
 const DEFAULT_URL = "http://localhost:11434";
 
 // ── Types for Ollama API responses ────────────────────────────────────────────
