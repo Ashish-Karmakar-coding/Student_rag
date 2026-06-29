@@ -28,10 +28,10 @@ const BACKEND_URL =
 
 const NEXTAUTH_SECRET = new TextEncoder().encode(process.env["NEXTAUTH_SECRET"]!);
 
-/** Allow enough time for backend cold start + MongoDB connect, but fail before Vercel 504. */
-const BACKEND_SYNC_TIMEOUT_MS = 25_000;
+/** Allow enough time for backend cold start + MongoDB connect, but fail before Vercel 60s hard limit. */
+const BACKEND_SYNC_TIMEOUT_MS = 55_000;
 
-export const maxDuration = 30;
+export const maxDuration = 59;
 
 export async function POST(): Promise<NextResponse> {
   try {

@@ -5,11 +5,15 @@
  * Next.js rewrites do NOT forward cookies to external domains.
  * This proxy manually forwards the request, including the Cookie header,
  * so the backend can authenticate the user via the access_token cookie.
+ *
+ * IMPORTANT: Must use Node.js runtime (not Edge) so multipart FormData
+ * bodies can be fully buffered and forwarded to the backend.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const BACKEND_URL =
   process.env["BACKEND_INTERNAL_URL"] ??
@@ -25,28 +29,45 @@ async function proxyRequest(req: NextRequest, { params }: { params: { path: stri
 
   // Forward headers, explicitly including cookies
   const headers = new Headers(req.headers);
-  // Next.js strips the host header when using fetch, but we can explicitly remove it just in case
+  // Remove host header — Vercel strips it but be explicit
   headers.delete("host");
+  // Remove next.js internal headers that might confuse the backend
+  headers.delete("x-nextjs-data");
+  headers.delete("x-invoke-path");
+  headers.delete("x-invoke-query");
 
-  // Extract access_token from incoming request cookies and append as Authorization header
+  // Extract access_token from incoming request cookies and pass as Authorization header.
+  // This is the primary auth mechanism — the backend's authMiddleware reads it from
+  // the Authorization header when no cookie is present.
   const accessToken = req.cookies.get("access_token")?.value;
   if (accessToken && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${accessToken}`);
   }
 
+  // Build the fetch options
+  const hasBody = req.method !== "GET" && req.method !== "HEAD";
+
+  let body: ArrayBuffer | null = null;
+  if (hasBody) {
+    // Buffer the entire body — this handles both JSON and multipart FormData correctly.
+    // For multipart uploads the Content-Type header (with boundary) is already in `headers`.
+    body = await req.arrayBuffer();
+  }
+
   // Fetch from the backend
   try {
-    const response = await fetch(targetUrl, {
+    const fetchOptions: RequestInit = {
       method: req.method,
       headers,
-      body: req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined,
-    });
+      body: hasBody && body ? body : undefined,
+    };
 
-    // Forward the backend response
+    const response = await fetch(targetUrl, fetchOptions);
+
+    // Build response headers — drop content-encoding since we decoded on the way
     const responseHeaders = new Headers(response.headers);
-    
-    // We don't want to forward backend's content-encoding if we are decoding it
     responseHeaders.delete("content-encoding");
+    responseHeaders.delete("transfer-encoding");
 
     const nextResponse = new NextResponse(response.body, {
       status: response.status,
@@ -68,8 +89,11 @@ async function proxyRequest(req: NextRequest, { params }: { params: { path: stri
 
     return nextResponse;
   } catch (err) {
-    console.error("[Backend Proxy Error]", err);
-    return NextResponse.json({ error: "Backend proxy failed" }, { status: 502 });
+    console.error("[Backend Proxy Error]", targetUrl, err);
+    return NextResponse.json(
+      { error: "Backend proxy failed", detail: err instanceof Error ? err.message : String(err) },
+      { status: 502 }
+    );
   }
 }
 

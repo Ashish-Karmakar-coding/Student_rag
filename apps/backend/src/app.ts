@@ -61,7 +61,7 @@ app.use(
 // ── DB connect middleware (serverless-safe) ───────────────────────────────────
 // Ensures MongoDB is connected before data routes. Runs after CORS so preflight
 // and lightweight routes are not blocked by Atlas cold starts.
-const DB_CONNECT_TIMEOUT_MS = 12_000;
+const DB_CONNECT_TIMEOUT_MS = 30_000;
 
 app.use("*", async (c, next) => {
   // Root health probe does not need MongoDB

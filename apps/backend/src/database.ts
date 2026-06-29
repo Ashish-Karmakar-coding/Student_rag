@@ -57,9 +57,9 @@ export async function connectDB(): Promise<void> {
     // Serverless-optimized settings
     maxPoolSize: 10,
     minPoolSize: 0, // Lower pool size to 0 to avoid background retry loops
-    serverSelectionTimeoutMS: 5000, // Fail fast if Atlas is unreachable
-    socketTimeoutMS: 30000,
-    connectTimeoutMS: 5000,
+    serverSelectionTimeoutMS: 15000, // Give Atlas time to respond from dynamic Vercel IPs
+    socketTimeoutMS: 45000,
+    connectTimeoutMS: 15000,
     bufferCommands: false, // Do not buffer commands if connection is not ready
     // Keep connections alive across invocations
     maxIdleTimeMS: 60000,
