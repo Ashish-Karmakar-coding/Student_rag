@@ -28,6 +28,7 @@ export const ProviderConfigSchema = z.object({
   provider: ProviderSchema,
   model: z.string().min(1, "Model name is required"),
   ollamaUrl: z.string().url("Must be a valid URL").optional(),
+  // embedProvider and embedModel are now managed by the server (always Pinecone)
   embedProvider: EmbedProviderSchema.optional(),
   embedModel: z.string().optional(),
   keyStored: z.boolean().optional(),

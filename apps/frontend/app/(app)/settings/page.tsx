@@ -36,11 +36,6 @@ const PROVIDERS: { value: Provider; label: string; badge: string; models: string
   },
 ];
 
-const EMBED_MODELS = {
-  ollama: ["nomic-embed-text", "mxbai-embed-large", "all-minilm"],
-  openai: ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"],
-  anthropic: ["nomic-embed-text (via Ollama)"],
-};
 
 interface TestResult { ok: boolean; latencyMs: number; model: string; error?: string; }
 
@@ -48,8 +43,6 @@ export default function SettingsPage() {
   const [provider, setProvider] = useState<Provider>("ollama");
   const [model, setModel] = useState("llama3");
   const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
-  const [embedProvider, setEmbedProvider] = useState<"ollama" | "openai">("ollama");
-  const [embedModel, setEmbedModel] = useState("nomic-embed-text");
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [keyStored, setKeyStored] = useState(false);
@@ -65,8 +58,6 @@ export default function SettingsPage() {
         setProvider(s.provider as Provider);
         setModel(s.model);
         setOllamaUrl(s.ollamaUrl ?? "http://localhost:11434");
-        setEmbedProvider((s.embedProvider ?? "ollama") as "ollama" | "openai");
-        setEmbedModel(s.embedModel ?? "nomic-embed-text");
         setKeyStored(s.keyStored);
       })
       .catch(() => toast.error("Failed to load settings"))
@@ -77,7 +68,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await patchSettings({
-        providerConfig: { provider, model, ollamaUrl, embedProvider, embedModel },
+        providerConfig: { provider, model, ollamaUrl },
       });
       toast.success("Settings saved!");
       setTestResult(null);
@@ -259,33 +250,22 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Embedding */}
+        {/* Embedding — info only */}
         <div className="bg-surface-raised border border-border-subtle rounded-lg p-6">
-          <label className="text-[10px] font-label-caps text-text-muted mb-3 block">Embedding Provider</label>
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            {(["ollama", "openai"] as const).map((ep) => (
-              <button
-                key={ep}
-                onClick={() => { setEmbedProvider(ep); setEmbedModel(EMBED_MODELS[ep][0]!.split(" ")[0]!); }}
-                className={`p-2.5 rounded border text-xs tracking-tight transition-all ${
-                  embedProvider === ep
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border-default bg-surface-sunken text-text-muted hover:border-primary/50 hover:text-text-primary"
-                }`}
-              >
-                {ep === "ollama" ? "Ollama (Local)" : "OpenAI (Cloud)"}
-              </button>
-            ))}
+          <label className="text-[10px] font-label-caps text-text-muted mb-3 block">Embeddings</label>
+          <div className="flex items-start gap-3 p-3 rounded bg-primary/5 border border-primary/15">
+            <div className="mt-0.5 w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+              <span className="text-[9px] text-primary font-bold">✓</span>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-text-primary mb-0.5">Pinecone Inference API</p>
+              <p className="text-[10px] font-label-mono text-text-muted">
+                Embeddings are handled automatically using{" "}
+                <span className="text-primary">llama-text-embed-v2</span> (1024-dim) via Pinecone —
+                no extra API key or configuration needed.
+              </p>
+            </div>
           </div>
-          <select
-            value={embedModel}
-            onChange={(e) => setEmbedModel(e.target.value)}
-            className="input-field text-xs"
-          >
-            {EMBED_MODELS[embedProvider].map((m) => (
-              <option key={m} value={m.split(" ")[0]} className="bg-surface-raised text-text-primary">{m}</option>
-            ))}
-          </select>
         </div>
 
         {/* Actions */}
