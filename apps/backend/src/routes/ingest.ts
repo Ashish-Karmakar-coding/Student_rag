@@ -204,9 +204,33 @@ ingestRoutes.delete("/upload/:fileName", async (c) => {
   }
 
 
-  // Estimate chunk count for vector deletion
-  // If job not found, attempt deletion with a generous upper bound
-  const estimatedChunks = 500;
+
+  // Look up the real chunk count for this file from the IngestJob document
+  // so we generate accurate vector IDs for deletion instead of a hardcoded guess
+  let estimatedChunks = 500; // conservative fallback
+  try {
+    const jobs = await IngestJob.find(
+      { userId: user.githubId, "files.fileName": fileName },
+      { "files.$": 1 }
+    ).lean();
+
+    // Sum conceptsFound across all matching job files as a rough chunk proxy
+    // (actual chunk count is not stored, but concept count correlates with it)
+    // The real count is bounded by the embedder: we overestimate to ensure full cleanup
+    let totalConcepts = 0;
+    for (const job of jobs) {
+      const fileInfo = job.files.find((f: any) => f.fileName === fileName);
+      if (fileInfo?.conceptsFound) {
+        totalConcepts += fileInfo.conceptsFound.length;
+      }
+    }
+    // Each chunk typically yields 1-2 concepts; over-estimate for safety
+    if (totalConcepts > 0) {
+      estimatedChunks = Math.max(500, totalConcepts * 10);
+    }
+  } catch (lookupErr) {
+    console.warn("[ingest] Could not look up chunk count, using default 500:", lookupErr);
+  }
 
   try {
     await deleteFileVectors(user.githubId, fileName, estimatedChunks);

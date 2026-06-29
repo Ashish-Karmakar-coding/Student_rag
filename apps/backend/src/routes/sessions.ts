@@ -20,22 +20,28 @@ sessionRoutes.use("*", authMiddleware);
 sessionRoutes.get("/", async (c) => {
   const user = c.var.user;
 
-  const sessions = await Session.find(
-    { userId: user.githubId },
-    // Exclude the messages array for the list view
-    { messages: 0 }
-  )
-    .sort({ updatedAt: -1 })
-    .limit(50)
-    .lean();
+  // Use aggregation to get message count without loading full message payloads
+  const sessions = await Session.aggregate([
+    { $match: { userId: user.githubId } },
+    { $sort: { updatedAt: -1 } },
+    { $limit: 50 },
+    {
+      $project: {
+        subject: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        messageCount: { $size: "$messages" },
+      },
+    },
+  ]);
 
   return c.json(
-    sessions.map((s) => ({
+    sessions.map((s: any) => ({
       id: s._id.toString(),
       subject: s.subject,
-      messageCount: 0, // excluded in projection — client shows subject/date
-      createdAt: s.createdAt.toISOString(),
-      updatedAt: s.updatedAt.toISOString(),
+      messageCount: s.messageCount as number,
+      createdAt: new Date(s.createdAt).toISOString(),
+      updatedAt: new Date(s.updatedAt).toISOString(),
     }))
   );
 });

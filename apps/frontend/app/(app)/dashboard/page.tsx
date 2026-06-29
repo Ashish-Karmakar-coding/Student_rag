@@ -206,6 +206,67 @@ export default function DashboardPage() {
           )}
         </motion.div>
       </div>
+
+      {/* Concepts to review */}
+      {mastery.length > 0 && (
+        <motion.div custom={6} variants={fadeUp} initial="hidden" animate="visible" className="mt-6 bg-surface-raised border border-border-subtle rounded-lg p-6">
+          <div className="flex items-center justify-between pb-3 mb-4 border-b border-border-subtle">
+            <h2 className="font-semibold text-xs uppercase tracking-tight flex items-center gap-2">
+              <Target size={14} className="text-error" />
+              Concepts to Review
+            </h2>
+            <span className="text-[10px] font-label-mono text-text-muted">Weakest first · click <RotateCcw size={10} className="inline" /> to reset</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[...mastery]
+              .sort((a, b) => a.score - b.score)
+              .slice(0, 8)
+              .map((m) => {
+                const mColor = getMasteryColor(m.score);
+                return (
+                  <div key={m.concept} className="group flex items-center gap-3 p-3 rounded border border-border-subtle bg-surface-sunken hover:bg-surface-overlay transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-medium text-text-primary truncate capitalize">{m.concept}</span>
+                        <span className="font-bold text-xs ml-2 shrink-0" style={{ color: mColor }}>
+                          {Math.round(m.score * 100)}%
+                        </span>
+                      </div>
+                      <div className="mastery-bar mb-1.5">
+                        <motion.div
+                          className="mastery-bar-fill"
+                          style={{ backgroundColor: mColor }}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${m.score * 100}%` }}
+                          transition={{ duration: 0.5, ease: "easeOut" }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 text-[9px] font-label-mono text-text-muted">
+                        <span className="capitalize">{m.subject}</span>
+                        <span>·</span>
+                        <span>{m.attemptCount} attempt{m.attemptCount !== 1 ? "s" : ""}</span>
+                        {m.lastTested && (
+                          <>
+                            <span>·</span>
+                            <span>tested {new Date(m.lastTested).toLocaleDateString()}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleReset(m.concept)}
+                      title={`Reset "${m.concept}" to 50%`}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded hover:bg-surface-raised text-text-muted hover:text-primary shrink-0"
+                    >
+                      <RotateCcw size={12} />
+                    </button>
+                  </div>
+                );
+              })}
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

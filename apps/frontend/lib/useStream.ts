@@ -69,6 +69,11 @@ export function useStream(opts: UseStreamOptions = {}) {
       addMessage({ role: "user", text: query, isStreaming: false, conceptTags: [], sources: [], timestamp: new Date().toISOString() });
       addMessage({ role: "assistant", text: "", isStreaming: true, conceptTags: [], sources: [], timestamp: new Date().toISOString() });
 
+      // Track stream metadata in local variables — avoids stale closure bug
+      // when passing to onDone (state updates are async, locals are not)
+      let finalConceptTags: string[] = [];
+      let finalSources: Source[] = [];
+
       setState({
         isStreaming: true,
         text: "",
@@ -119,9 +124,11 @@ export function useStream(opts: UseStreamOptions = {}) {
                 updateLastMessage({ text: accumulated });
                 setState((prev) => ({ ...prev, text: accumulated }));
               } else if (event.type === "concept_tags" && "tags" in event) {
+                finalConceptTags = event.tags;
                 setState((prev) => ({ ...prev, conceptTags: event.tags }));
                 updateLastMessage({ conceptTags: event.tags });
               } else if (event.type === "sources" && "chunks" in event) {
+                finalSources = event.chunks;
                 setState((prev) => ({ ...prev, sources: event.chunks }));
                 updateLastMessage({ sources: event.chunks, isStreaming: false });
               } else if (event.type === "mastery_hint" && "weakConcept" in event) {
@@ -141,7 +148,7 @@ export function useStream(opts: UseStreamOptions = {}) {
         }
 
         setState((prev) => ({ ...prev, isStreaming: false }));
-        opts.onDone?.(accumulated, state.conceptTags, state.sources);
+        opts.onDone?.(accumulated, finalConceptTags, finalSources);
       } catch (err) {
         if ((err as Error).name === "AbortError") {
           setState((prev) => ({ ...prev, isStreaming: false }));
@@ -153,13 +160,16 @@ export function useStream(opts: UseStreamOptions = {}) {
         opts.onError?.(message);
       }
     },
-    [addMessage, updateLastMessage, opts, state.conceptTags, state.sources]
+    [addMessage, updateLastMessage, opts]
   );
 
   const stop = useCallback(() => {
     abortRef.current?.abort();
     setState((prev) => ({ ...prev, isStreaming: false }));
-  }, []);
+    // Mark the last assistant message as no longer streaming so the
+    // pulsing cursor is removed from the chat bubble immediately
+    updateLastMessage({ isStreaming: false });
+  }, [updateLastMessage]);
 
   return { ...state, startStream, stop };
 }
