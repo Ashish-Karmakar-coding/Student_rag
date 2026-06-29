@@ -142,10 +142,7 @@ quizRoutes.get("/next", async (c) => {
     if (!(await isProviderReachable(embedCfg))) {
       return c.json(
         {
-          error: "Embedding provider unavailable",
-          message:
-            `Embedding provider "${embedCfg.provider}" is not reachable from the server. ` +
-            `If deployed to the cloud, go to Settings and switch to OpenAI or Pinecone.`,
+          error: `Embedding provider unavailable: "${embedCfg.provider}" is not reachable from the server. If deployed to the cloud, go to Settings and switch to OpenAI or Pinecone.`,
         },
         503
       );
@@ -168,8 +165,7 @@ quizRoutes.get("/next", async (c) => {
       console.error("[quiz/next] Pinecone retrieve failed:", msg);
       return c.json(
         {
-          error: "Failed to retrieve study content",
-          detail: msg,
+          error: `Failed to retrieve study content: ${msg}`,
           hint: "Ensure your Pinecone index exists and has been indexed with study materials.",
         },
         503
@@ -190,10 +186,7 @@ quizRoutes.get("/next", async (c) => {
     if (!llmReachable) {
       return c.json(
         {
-          error: "LLM provider unavailable",
-          message:
-            `Quiz generation requires an LLM. Your current provider (${cfg.provider}) ` +
-            `is not reachable from the server. Go to Settings → switch to OpenAI or Anthropic.`,
+          error: `LLM provider unavailable: Quiz generation requires an LLM. Your current provider (${cfg.provider}) is not reachable from the server. Go to Settings → switch to OpenAI or Anthropic.`,
         },
         503
       );
@@ -231,14 +224,14 @@ quizRoutes.get("/next", async (c) => {
     });
   } catch (err) {
     if (err instanceof ProviderAuthError) {
-      return c.json({ error: "Authentication failed", detail: err.message }, 401);
+      return c.json({ error: `Authentication failed: ${err.message}` }, 401);
     }
     if (err instanceof ProviderError) {
-      return c.json({ error: "Provider error", detail: err.message }, 503);
+      return c.json({ error: `Provider error: ${err.message}` }, 503);
     }
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[quiz/next] Unhandled error:", msg);
-    return c.json({ error: "Internal server error", detail: msg }, 500);
+    return c.json({ error: `Internal server error: ${msg}` }, 500);
   }
 });
 
@@ -322,13 +315,13 @@ quizRoutes.post("/answer", async (c) => {
     });
   } catch (err) {
     if (err instanceof ProviderAuthError) {
-      return c.json({ error: "Authentication failed", detail: err.message }, 401);
+      return c.json({ error: `Authentication failed: ${err.message}` }, 401);
     }
     if (err instanceof ProviderError) {
-      return c.json({ error: "Provider error", detail: err.message }, 503);
+      return c.json({ error: `Provider error: ${err.message}` }, 503);
     }
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[quiz/answer] Unhandled error:", msg);
-    return c.json({ error: "Internal server error", detail: msg }, 500);
+    return c.json({ error: `Internal server error: ${msg}` }, 500);
   }
 });
