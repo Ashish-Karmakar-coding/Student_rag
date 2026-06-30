@@ -5,9 +5,18 @@
  *   GET  /quiz/next    → generate next Socratic question
  *   POST /quiz/answer  → evaluate answer, update mastery, return feedback
  *
- * Pending quiz questions are stored in a short-lived in-memory cache (Map).
- * TTL: 10 minutes. Cleaned up via setInterval every 5 minutes.
- * This avoids a separate DB collection for ephemeral quiz state.
+ * SERVERLESS-SAFE DESIGN:
+ * Pending quiz questions are stored in MongoDB (PendingQuestion collection)
+ * with a TTL index for automatic cleanup after 10 minutes.
+ *
+ * Previously, an in-memory Map was used — this BREAKS on Vercel serverless
+ * because each function invocation is a fresh process. A question created
+ * in one invocation is NEVER visible to the next invocation handling /quiz/answer.
+ * MongoDB solves this by persisting across invocations.
+ *
+ * The setInterval TTL cleanup was also removed — it does not fire on serverless
+ * functions and causes issues during cold starts. MongoDB's TTL index handles
+ * cleanup automatically.
  */
 
 import { Hono } from "hono";
@@ -16,6 +25,7 @@ import { QuizAnswerSchema, QuizNextQuerySchema } from "@study-tutor/shared";
 import { authMiddleware } from "../auth/middleware.js";
 import { Mastery, calcNewMasteryScore } from "../models/Mastery.js";
 import { IngestJob, type IIngestFile } from "../models/IngestJob.js";
+import { PendingQuestion } from "../models/PendingQuestion.js";
 import { retrieve } from "../retrieval/retrieve.js";
 import { getQueryEmbeddingProvider, getLLMProvider, isProviderReachable } from "../providers/factory.js";
 import {
@@ -32,29 +42,8 @@ export const quizRoutes = new Hono();
 
 quizRoutes.use("*", authMiddleware);
 
-// ── Pending question cache ────────────────────────────────────────────────────
-
-interface PendingQuestion {
-  userId: string;
-  concept: string;
-  question: string;
-  hint: string;
-  masteryBefore: number;
-  chunks: RetrievedChunk[];
-  expiresAt: number;
-}
-
-const pendingQuestions = new Map<string, PendingQuestion>();
-
-// TTL cleanup every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [id, q] of pendingQuestions.entries()) {
-    if (q.expiresAt < now) pendingQuestions.delete(id);
-  }
-}, 5 * 60 * 1000);
-
-const QUESTION_TTL_MS = 10 * 60 * 1000; // 10 minutes
+/** TTL: questions expire after 10 minutes */
+const QUESTION_TTL_MS = 10 * 60 * 1000;
 
 // ── GET /quiz/next ────────────────────────────────────────────────────────────
 
@@ -70,6 +59,26 @@ quizRoutes.get("/next", async (c) => {
     }
 
     const { concept: requestedConcept, subject, fileName } = queryResult.data;
+
+    // ── Pre-flight: check LLM provider is reachable ──────────────────────────
+    // Do this early so we fail fast with a clear message instead of waiting
+    // for Pinecone retrieval only to fail at the LLM step.
+    const cfg = { ...user.providerConfig, userId: user.githubId };
+    const llmReachable = await isProviderReachable(cfg);
+
+    if (!llmReachable) {
+      return c.json(
+        {
+          error: `LLM provider unavailable`,
+          message:
+            `Quiz generation requires an LLM. Your current provider (${cfg.provider}) ` +
+            `is not reachable from the server. Go to Settings → switch to OpenAI or Anthropic ` +
+            `and save your API key.`,
+          hint: "settings",
+        },
+        503
+      );
+    }
 
     // 1. Find the target concept (requested or weakest)
     let targetConcept: string;
@@ -141,7 +150,7 @@ quizRoutes.get("/next", async (c) => {
       userId: user.githubId,
     });
 
-    let chunks;
+    let chunks: RetrievedChunk[];
     try {
       const result = await retrieve(targetConcept, user.githubId, embedder, fileName);
       chunks = result.chunks;
@@ -168,33 +177,23 @@ quizRoutes.get("/next", async (c) => {
     }
 
     // 3. Generate Socratic question via LLM
-    const cfg = { ...user.providerConfig, userId: user.githubId };
-    const llmReachable = await isProviderReachable(cfg);
-
-    if (!llmReachable) {
-      return c.json(
-        {
-          error: `LLM provider unavailable: Quiz generation requires an LLM. Your current provider (${cfg.provider}) is not reachable from the server. Go to Settings → switch to OpenAI or Anthropic.`,
-        },
-        503
-      );
-    }
-
     const llm = getLLMProvider(cfg);
     const prompt = buildSocraticPrompt(targetConcept, masteryBefore, chunks);
     const rawResponse = await llm.complete(prompt, SOCRATIC_SYSTEM);
     const { question, hint } = parseSocraticResponse(rawResponse);
 
-    // 4. Store in pending cache
+    // 4. Persist pending question in MongoDB (serverless-safe)
+    //    TTL index on `expiresAt` auto-deletes after 10 minutes.
     const questionId = uuidv4();
-    pendingQuestions.set(questionId, {
+    await PendingQuestion.create({
+      questionId,
       userId: user.githubId,
       concept: targetConcept,
       question,
       hint,
       masteryBefore,
-      chunks,
-      expiresAt: Date.now() + QUESTION_TTL_MS,
+      chunksJson: JSON.stringify(chunks),
+      expiresAt: new Date(Date.now() + QUESTION_TTL_MS),
     });
 
     return c.json({
@@ -239,7 +238,9 @@ quizRoutes.post("/answer", async (c) => {
 
     const { questionId, answer } = bodyResult.data;
 
-    const pending = pendingQuestions.get(questionId);
+    // Look up the pending question from MongoDB
+    const pending = await PendingQuestion.findOne({ questionId }).lean();
+
     if (!pending) {
       return c.json(
         { error: "Question not found or expired. Please request a new question." },
@@ -251,7 +252,17 @@ quizRoutes.post("/answer", async (c) => {
       return c.json({ error: "Unauthorized" }, 403);
     }
 
-    pendingQuestions.delete(questionId);
+    // Delete it immediately (single-use)
+    await PendingQuestion.deleteOne({ questionId });
+
+    // Deserialise chunks
+    let chunks: RetrievedChunk[];
+    try {
+      chunks = JSON.parse(pending.chunksJson) as RetrievedChunk[];
+    } catch {
+      console.error("[quiz/answer] Failed to parse chunksJson for questionId:", questionId);
+      return c.json({ error: "Corrupted question data. Please request a new question." }, 500);
+    }
 
     // Evaluate answer via LLM
     const cfg = { ...user.providerConfig, userId: user.githubId };
@@ -273,7 +284,7 @@ quizRoutes.post("/answer", async (c) => {
     const evalResult = await evaluateAnswer(
       pending.question,
       answer,
-      pending.chunks,
+      chunks,
       llm
     );
 

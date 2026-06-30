@@ -15,3 +15,4 @@ export {
   type FileStatus,
   type JobStatus,
 } from "./IngestJob.js";
+export { PendingQuestion, type IPendingQuestion } from "./PendingQuestion.js";
