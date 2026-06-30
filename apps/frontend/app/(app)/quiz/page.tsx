@@ -37,16 +37,11 @@ export default function QuizPage() {
   const { files } = useFiles();
   const { settings } = useSettings();
 
-  // Ollama with localhost URL = not reachable from Vercel
-  // Ollama with a public tunnel URL (ngrok) = reachable and usable
   const isOllamaProvider = settings?.provider === "ollama";
   const ollamaUrl = settings?.ollamaUrl ?? "http://localhost:11434";
-  const ollamaIsLocalhost = isOllamaProvider && (
-    ollamaUrl.includes("localhost") ||
-    ollamaUrl.includes("127.0.0.1")
-  );
-  // Block quiz start only when Ollama URL is localhost (unreachable from Vercel)
-  const providerReady = !ollamaIsLocalhost;
+
+  // With direct browser-to-localhost, localhost is fully supported.
+  const providerReady = true;
 
   const fetchQuestion = async () => {
     setPhase("loading-q");
@@ -68,7 +63,12 @@ export default function QuizPage() {
           
         const prompt = `Context from study materials:\n${contextText}\n\n---\n\nTarget concept: "${contextData.concept}"\nStudent mastery: ${Math.round(contextData.masteryBefore * 100)}%\nDifficulty tier: ${contextData.difficulty}\n\nGenerate ONE Socratic guiding question about "${contextData.concept}" at the ${contextData.difficulty} level.\nThe question should help the student think through the concept.\n\nFormat your response as:\nQuestion: [your single question here]\nHint: [a subtle nudge, no more than one sentence]`;
         
-        const raw = await ollamaComplete(prompt, "You are a Socratic tutor. Your job is to help students discover knowledge through guided questioning.\n\nRules:\n- NEVER give the answer directly\n- Ask exactly ONE guiding question per response\n- The question should lead the student to reason through the concept themselves\n- Use the provided context as the basis for your question\n- Match the difficulty level specified\n- Make the question specific, not vague\n- End with a \"Hint:\" line that gives a subtle nudge without revealing the answer", settings?.model || "llama3");
+        const raw = await ollamaComplete(
+          prompt, 
+          "You are a Socratic tutor. Your job is to help students discover knowledge through guided questioning.\n\nRules:\n- NEVER give the answer directly\n- Ask exactly ONE guiding question per response\n- The question should lead the student to reason through the concept themselves\n- Use the provided context as the basis for your question\n- Match the difficulty level specified\n- Make the question specific, not vague\n- End with a \"Hint:\" line that gives a subtle nudge without revealing the answer", 
+          settings?.model || "llama3",
+          ollamaUrl
+        );
         
         const questionMatch = raw.match(/Question:\s*(.+?)(?=Hint:|$)/si);
         const hintMatch = raw.match(/Hint:\s*(.+?)$/si);
@@ -114,7 +114,12 @@ export default function QuizPage() {
           
         const prompt = `Context from study materials:\n${contextText}\n\n---\n\nQuestion asked to student: ${question.question}\n\nStudent's answer: ${answer.trim()}\n\nEvaluate how correct the student's answer is based on the context.\nReturn ONLY valid JSON (no markdown):\n{"score": 0.0-1.0, "feedback": "constructive feedback", "explanation": "complete correct answer"}`;
         
-        const raw = await ollamaComplete(prompt, "You are an academic answer evaluator.\nYour task is to assess how correct a student's answer is.\n\nRules:\n- Return ONLY valid JSON, no markdown fences, no explanation outside JSON\n- score: a decimal from 0.0 (completely wrong) to 1.0 (perfectly correct)\n- feedback: 1–2 sentences of constructive feedback for the student\n- explanation: the complete correct answer based on the provided context\n- Be fair but accurate — partial credit is fine (e.g. 0.6 for mostly correct)\n- JSON format: {\"score\": 0.8, \"feedback\": \"...\", \"explanation\": \"...\"}", settings?.model || "llama3");
+        const raw = await ollamaComplete(
+          prompt, 
+          "You are an academic answer evaluator.\nYour task is to assess how correct a student's answer is.\n\nRules:\n- Return ONLY valid JSON, no markdown fences, no explanation outside JSON\n- score: a decimal from 0.0 (completely wrong) to 1.0 (perfectly correct)\n- feedback: 1–2 sentences of constructive feedback for the student\n- explanation: the complete correct answer based on the provided context\n- Be fair but accurate — partial credit is fine (e.g. 0.6 for mostly correct)\n- JSON format: {\"score\": 0.8, \"feedback\": \"...\", \"explanation\": \"...\"}", 
+          settings?.model || "llama3",
+          ollamaUrl
+        );
         
         let parsed: any;
         try {
@@ -176,27 +181,7 @@ export default function QuizPage() {
               </div>
               <h2 className="text-base font-bold mb-2 tracking-tight text-text-primary">Ready to be tested?</h2>
 
-              {/* ── Provider warning (Ollama localhost) ─────────────────────── */}
-              {ollamaIsLocalhost && (
-                <div className="max-w-xs mx-auto mb-6 text-left bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex gap-2.5">
-                  <AlertTriangle size={14} className="text-amber-400 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-xs font-semibold text-amber-300 mb-0.5">Ollama needs a tunnel URL</p>
-                    <p className="text-[11px] text-amber-200/80 leading-relaxed">
-                      Your Ollama URL is <code className="bg-amber-900/30 px-1 rounded text-[10px]">localhost</code> — not reachable from Vercel.
-                      Run <code className="bg-amber-900/30 px-1 rounded text-[10px]">ngrok http 11434</code> and paste the HTTPS URL in Settings.
-                    </p>
-                    <Link
-                      href="/settings"
-                      className="inline-flex items-center gap-1 mt-1.5 text-[11px] text-amber-300 hover:text-amber-100 underline underline-offset-2 transition-colors"
-                    >
-                      <Settings size={11} /> Configure in Settings
-                    </Link>
-                  </div>
-                </div>
-              )}
-
-              <div className="max-w-xs mx-auto mb-8 text-left">
+              {/* ── Provider warning (removed since localhost works directly) ── */}              <div className="max-w-xs mx-auto mb-8 text-left">
                 <label className="text-[10px] font-label-caps text-text-muted mb-2 block">Select Project (PDF)</label>
                 {files.length === 0 ? (
                   <div className="text-xs text-text-muted text-center py-4 bg-surface-sunken rounded border border-border-subtle">
@@ -219,7 +204,6 @@ export default function QuizPage() {
                 onClick={fetchQuestion} 
                 disabled={!selectedFile || files.length === 0 || !providerReady}
                 className="btn-primary flex items-center gap-2 mx-auto disabled:opacity-50"
-                title={ollamaIsLocalhost ? "Set ngrok tunnel URL in Settings → Ollama Server URL" : undefined}
               >
                 Start Quiz <Zap size={14} />
               </button>

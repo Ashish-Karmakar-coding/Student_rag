@@ -128,7 +128,7 @@ export function useStream(opts: UseStreamOptions = {}) {
         const model = settings?.model ?? "llama3";
 
         // Stream tokens from local Ollama
-        for await (const token of ollamaStream(prompt, system, model)) {
+        for await (const token of ollamaStream(prompt, system, model, settings?.ollamaUrl)) {
           if (ctrl.signal.aborted) break;
           accumulated += token;
           updateLastMessage({ text: accumulated });

@@ -12,6 +12,7 @@ import {
   Eye, EyeOff, Trash2, Zap, Key, Server, AlertTriangle, ExternalLink,
 } from "lucide-react";
 import { getSettings, patchSettings, saveApiKey, deleteApiKey, testProvider } from "../../../lib/api";
+import { ollamaComplete, pingOllama } from "../../../lib/useOllama";
 
 type Provider = "ollama" | "openai" | "anthropic";
 
@@ -121,14 +122,32 @@ export default function SettingsPage() {
     setTesting(true);
     setTestResult(null);
     try {
-      const r = await testProvider();
-      setTestResult(r);
-      if (r.ok) {
-        toast.success(`Connected to ${r.model} in ${r.latencyMs}ms`);
-      } else if (r.hint === "local_only") {
-        toast.warning("Ollama URL is localhost — not reachable from Vercel. Set a tunnel URL first.");
+      if (provider === "ollama") {
+        // Test local Ollama directly from browser
+        const start = Date.now();
+        const ok = await pingOllama(ollamaUrl);
+        if (!ok) {
+          setTestResult({ ok: false, latencyMs: 0, model, error: "Ollama is not reachable. Check that it is running and OLLAMA_ORIGINS is configured." });
+          toast.error("Connection failed");
+        } else {
+          try {
+            await ollamaComplete("Reply with exactly: OK", "You are a test assistant. Reply only with what is requested.", model, ollamaUrl);
+            const latencyMs = Date.now() - start;
+            setTestResult({ ok: true, latencyMs, model });
+            toast.success(`Connected to ${model} in ${latencyMs}ms`);
+          } catch (e) {
+            setTestResult({ ok: false, latencyMs: 0, model, error: e instanceof Error ? e.message : "LLM check failed" });
+            toast.error("Connection failed");
+          }
+        }
       } else {
-        toast.error(r.error ?? "Connection failed");
+        const r = await testProvider();
+        setTestResult(r);
+        if (r.ok) {
+          toast.success(`Connected to ${r.model} in ${r.latencyMs}ms`);
+        } else {
+          toast.error(r.error ?? "Connection failed");
+        }
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Test failed");
@@ -146,12 +165,6 @@ export default function SettingsPage() {
   const selectedProvider = PROVIDERS.find((p) => p.value === provider)!;
   const needsKey = provider !== "ollama";
   const isOllamaSelected = provider === "ollama";
-  // Ollama with localhost URL = not reachable from Vercel
-  const ollamaIsLocalhost = isOllamaSelected && isLocalhost(ollamaUrl);
-  // Ollama with a public tunnel URL = reachable and testable
-  const ollamaHasTunnel = isOllamaSelected && !isLocalhost(ollamaUrl) && ollamaUrl.trim() !== "";
-  // Can the Test Connection button be used?
-  const canTest = !ollamaIsLocalhost;
 
   return (
     <div className="p-8 max-w-2xl mx-auto bg-surface-base text-text-primary font-body-default min-h-screen">
@@ -168,56 +181,40 @@ export default function SettingsPage() {
 
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
 
-        {/* ── Ollama tunnel guide (only when localhost is set) ───────────────── */}
-        {ollamaIsLocalhost && (
+        {/* ── Ollama local dev / CORS guide ───────────────── */}
+        {isOllamaSelected && (
           <motion.div
             initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
-            className="rounded-lg border border-amber-500/30 bg-amber-500/8 overflow-hidden"
+            className="rounded-lg border border-primary/30 bg-primary/8 overflow-hidden"
           >
             <div className="flex gap-3 p-4">
-              <AlertTriangle size={16} className="text-amber-400 mt-0.5 shrink-0" />
+              <Server size={16} className="text-primary mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-amber-300 mb-1">Ollama needs a public tunnel to work on Vercel</p>
-                <p className="text-[11px] text-amber-200/80 leading-relaxed mb-3">
-                  Your Vercel backend runs in the cloud — it can't reach <code className="bg-amber-900/40 px-1 rounded text-amber-300">localhost:11434</code> on your machine.
-                  Use <strong>ngrok</strong> to give your local Ollama a public URL that Vercel can call.
+                <p className="text-xs font-bold text-primary mb-1">Connecting to Local Ollama in Production</p>
+                <p className="text-[11px] text-text-muted leading-relaxed mb-3">
+                  This app connects to Ollama directly from your browser. To allow this site to connect to your local Ollama instance, you must start Ollama with CORS enabled.
                 </p>
                 {/* Step-by-step */}
-                <div className="space-y-2 text-[11px] text-amber-100/90">
+                <div className="space-y-2 text-[11px] text-text-primary/90">
                   <div className="flex items-start gap-2">
-                    <span className="font-bold text-amber-400 shrink-0 w-4">1.</span>
-                    <span>Install ngrok → <a href="https://ngrok.com/download" target="_blank" rel="noopener noreferrer" className="underline text-amber-300 hover:text-amber-100 inline-flex items-center gap-0.5">ngrok.com/download <ExternalLink size={9} /></a></span>
+                    <span className="font-bold text-primary shrink-0 w-4">1.</span>
+                    <span>Close Ollama if it is already running.</span>
                   </div>
                   <div className="flex items-start gap-2">
-                    <span className="font-bold text-amber-400 shrink-0 w-4">2.</span>
-                    <span>Run in a terminal: <code className="bg-amber-900/40 px-1.5 py-0.5 rounded text-amber-200 font-mono">ngrok http 11434</code></span>
+                    <span className="font-bold text-primary shrink-0 w-4">2.</span>
+                    <span>Open a terminal or command prompt.</span>
                   </div>
                   <div className="flex items-start gap-2">
-                    <span className="font-bold text-amber-400 shrink-0 w-4">3.</span>
-                    <span>Copy the <strong>Forwarding</strong> URL (e.g. <code className="bg-amber-900/40 px-1 rounded text-amber-200 font-mono">https://abc123.ngrok-free.app</code>)</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="font-bold text-amber-400 shrink-0 w-4">4.</span>
-                    <span>Paste it in the <strong>Ollama Server URL</strong> field below, then <strong>Save Settings</strong></span>
+                    <span className="font-bold text-primary shrink-0 w-4">3.</span>
+                    <span>
+                      Set the CORS origin environment variable and start Ollama:<br/>
+                      <code className="bg-surface-raised px-1.5 py-0.5 rounded text-text-primary font-mono mt-1 inline-block border border-border-default">
+                        OLLAMA_ORIGINS="*" ollama serve
+                      </code>
+                    </span>
                   </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* ── Ollama tunnel active confirmation ─────────────────────────────── */}
-        {ollamaHasTunnel && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
-            className="flex gap-3 p-3.5 rounded-lg border border-primary/30 bg-primary/8"
-          >
-            <CheckCircle2 size={15} className="text-primary mt-0.5 shrink-0" />
-            <div>
-              <p className="text-xs font-semibold text-primary mb-0.5">Tunnel URL set ✓</p>
-              <p className="text-[11px] text-text-muted">
-                Ollama is configured with a public URL. Make sure Ollama is running locally and ngrok is active. Click <strong>Test Connection</strong> to verify.
-              </p>
             </div>
           </motion.div>
         )}
@@ -281,8 +278,7 @@ export default function SettingsPage() {
           <div className="bg-surface-raised border border-border-subtle rounded-lg p-6">
             <label className="text-[10px] font-label-caps text-text-muted mb-1 block">Ollama Server URL</label>
             <p className="text-[10px] text-text-muted mb-3">
-              Use <code className="bg-surface-sunken px-1 rounded">http://localhost:11434</code> for local dev,
-              or paste your <strong>ngrok HTTPS URL</strong> for production access.
+              Default is <code className="bg-surface-sunken px-1 rounded">http://localhost:11434</code>. 
             </p>
             <input
               id="ollama-url-input"
@@ -384,16 +380,12 @@ export default function SettingsPage() {
           <button
             id="test-provider-btn"
             onClick={handleTest}
-            disabled={testing || !canTest}
-            title={
-              ollamaIsLocalhost
-                ? "Set a public ngrok URL in the Ollama Server URL field first"
-                : "Test provider connectivity"
-            }
+            disabled={testing}
+            title="Test provider connectivity"
             className="btn-secondary flex items-center gap-2 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {testing ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
-            {ollamaIsLocalhost ? "Set tunnel URL first" : "Test Connection"}
+            Test Connection
           </button>
         </div>
 

@@ -31,11 +31,11 @@ export async function ollamaComplete(
   prompt: string,
   system: string,
   model: string,
-  ollamaPort: string = "11434"
+  ollamaUrl: string = "http://localhost:11434"
 ): Promise<string> {
-  // Use the proxy for browser → Next.js server → Ollama (avoids CORS)
-  // In dev this is fine. In production users should run locally.
-  const url = `${OLLAMA_PROXY}/generate`;
+  // Direct browser-to-localhost call (Codexa production approach).
+  // Requires Ollama to be running with OLLAMA_ORIGINS="https://kairo.ashishkarmakar.in" or "*"
+  const url = `${ollamaUrl.replace(/\/$/, "")}/api/generate`;
 
   const response = await fetch(url, {
     method: "POST",
@@ -53,7 +53,7 @@ export async function ollamaComplete(
     throw new Error(
       (err as any).error ??
       (err as any).detail ??
-      `Ollama returned ${response.status}. Make sure Ollama is running on port ${ollamaPort}.`
+      `Ollama returned ${response.status}. Make sure Ollama is running and CORS is configured.`
     );
   }
 
@@ -64,14 +64,15 @@ export async function ollamaComplete(
 /**
  * Calls local Ollama and streams response tokens.
  * Used by the chat page for real-time streaming output — mirrors useStream.ts
- * but routes through the local Ollama proxy instead of Vercel backend.
+ * but routes directly from the browser to localhost.
  */
 export async function* ollamaStream(
   prompt: string,
   system: string,
-  model: string
+  model: string,
+  ollamaUrl: string = "http://localhost:11434"
 ): AsyncGenerator<string> {
-  const url = `${OLLAMA_PROXY}/generate`;
+  const url = `${ollamaUrl.replace(/\/$/, "")}/api/generate`;
 
   const response = await fetch(url, {
     method: "POST",
@@ -89,7 +90,7 @@ export async function* ollamaStream(
     throw new Error(
       (err as any).error ??
       (err as any).detail ??
-      `Ollama returned ${response.status}. Make sure Ollama is running.`
+      `Ollama returned ${response.status}. Make sure Ollama is running and CORS is configured.`
     );
   }
 
@@ -121,9 +122,10 @@ export async function* ollamaStream(
  * Pings local Ollama to check if it's running.
  * Returns true if reachable, false otherwise.
  */
-export async function pingOllama(): Promise<boolean> {
+export async function pingOllama(ollamaUrl: string = "http://localhost:11434"): Promise<boolean> {
   try {
-    const res = await fetch(`${OLLAMA_PROXY}/tags`, { method: "GET" });
+    const url = `${ollamaUrl.replace(/\/$/, "")}/api/tags`;
+    const res = await fetch(url, { method: "GET" });
     return res.ok;
   } catch {
     return false;
