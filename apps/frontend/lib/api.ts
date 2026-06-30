@@ -276,6 +276,32 @@ export function submitAnswer(
   });
 }
 
+// ── Codexa Ollama Flow ────────────────────────────────────────────────────────
+
+export function getNextQuestionContext(params?: {
+  concept?: string;
+  subject?: string;
+  fileName?: string;
+}): Promise<any> {
+  const qs = new URLSearchParams();
+  if (params?.concept) qs.set("concept", params.concept);
+  if (params?.subject) qs.set("subject", params.subject);
+  if (params?.fileName) qs.set("fileName", params.fileName);
+  const query = qs.toString() ? `?${qs.toString()}` : "";
+  return apiFetch(`/quiz/next-context${query}`);
+}
+
+export function submitQuizScoreUpdate(
+  concept: string,
+  masteryBefore: number,
+  score: number
+): Promise<{ masteryAfter: number; delta: number }> {
+  return apiFetch("/quiz/answer-update", {
+    method: "POST",
+    body: JSON.stringify({ concept, masteryBefore, score }),
+  });
+}
+
 // ── Health ────────────────────────────────────────────────────────────────────
 
 export function getHealth(): Promise<{

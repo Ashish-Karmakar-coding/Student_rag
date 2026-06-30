@@ -22,10 +22,63 @@ import { authMiddleware } from "../auth/middleware.js";
 import { runTutorGraph } from "../graph/tutorGraph.js";
 import { findWeakestConcept } from "../retrieval/masteryWeighter.js";
 import { Session } from "../models/Session.js";
+import { retrieve } from "../retrieval/retrieve.js";
+import { getQueryEmbeddingProvider } from "../providers/factory.js";
 
 export const chatRoutes = new Hono();
 
 chatRoutes.use("/chat", authMiddleware);
+chatRoutes.use("/chat/retrieve", authMiddleware);
+
+// ── POST /chat/retrieve ───────────────────────────────────────────────────────
+// Codexa-style endpoint: does auth + Pinecone retrieval only.
+// Returns chunks as JSON so the frontend can call the local Ollama LLM directly
+// from the browser (same machine as Ollama) — no Vercel server → Ollama needed.
+//
+// Used when provider === "ollama":
+//   browser → /api/backend/chat/retrieve → Pinecone (cloud, works fine)
+//   browser → /api/ollama  → localhost:11434 (local, works fine from browser)
+
+chatRoutes.post("/chat/retrieve", async (c) => {
+  const user = c.var.user;
+
+  const bodyResult = ChatRequestSchema.safeParse(await c.req.json());
+  if (!bodyResult.success) {
+    return c.json({ error: "Invalid request", details: bodyResult.error.flatten() }, 400);
+  }
+
+  const { query } = bodyResult.data;
+
+  if (!user.hasFiles) {
+    return c.json({ error: "No study materials uploaded. Please upload files first." }, 400);
+  }
+
+  const embedder = getQueryEmbeddingProvider({
+    ...user.providerConfig,
+    userId: user.githubId,
+  });
+
+  const { chunks, masteryContext } = await retrieve(query, user.githubId, embedder);
+
+  // Find weakest concept for the mastery hint
+  const masteryHint =
+    Object.keys(masteryContext).length > 0
+      ? findWeakestConcept(masteryContext)
+      : null;
+
+  return c.json({
+    chunks: chunks.map((ch) => ({
+      text: ch.metadata?.text ?? "",
+      fileName: ch.metadata?.fileName ?? "",
+      chunkIndex: ch.metadata?.chunkIndex ?? 0,
+      page: ch.metadata?.page,
+      conceptTags: ch.metadata?.conceptTags ?? [],
+      subject: ch.metadata?.subject ?? "",
+    })),
+    masteryHint,
+  });
+});
+
 
 // ── POST /chat ────────────────────────────────────────────────────────────────
 

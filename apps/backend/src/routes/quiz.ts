@@ -222,6 +222,124 @@ quizRoutes.get("/next", async (c) => {
   }
 });
 
+// ── GET /quiz/next-context ────────────────────────────────────────────────────
+// Codexa approach: retrieve chunks and concept target only, no LLM.
+// Frontend uses this to get context, then calls local Ollama directly.
+
+quizRoutes.get("/next-context", async (c) => {
+  const user = c.var.user;
+
+  try {
+    const queryResult = QuizNextQuerySchema.safeParse(
+      Object.fromEntries(new URL(c.req.url).searchParams)
+    );
+    if (!queryResult.success) {
+      return c.json({ error: "Invalid query params" }, 400);
+    }
+
+    const { concept: requestedConcept, subject, fileName } = queryResult.data;
+
+    let targetConcept: string;
+    let masteryBefore: number;
+
+    if (requestedConcept) {
+      const doc = await Mastery.findOne({ userId: user.githubId, concept: requestedConcept }).lean();
+      targetConcept = requestedConcept;
+      masteryBefore = doc?.score ?? 0.5;
+    } else if (fileName) {
+      const jobs = await IngestJob.find({ userId: user.githubId, "files.fileName": fileName }).lean();
+      const fileConcepts = new Set<string>();
+      for (const job of jobs) {
+        const fileInfo = job.files.find((f: IIngestFile) => f.fileName === fileName);
+        if (fileInfo?.conceptsFound) {
+          fileInfo.conceptsFound.forEach((concept: string) => fileConcepts.add(concept));
+        }
+      }
+      if (fileConcepts.size === 0) {
+        return c.json({ error: `No concepts found for file: ${fileName}` }, 404);
+      }
+      const weakest = await Mastery.findOne({ userId: user.githubId, concept: { $in: Array.from(fileConcepts) } })
+        .sort({ score: 1 }).lean();
+      if (!weakest) {
+        targetConcept = Array.from(fileConcepts)[0] as string;
+        masteryBefore = 0.5;
+      } else {
+        targetConcept = weakest.concept;
+        masteryBefore = weakest.score;
+      }
+    } else {
+      const query: Record<string, unknown> = { userId: user.githubId };
+      if (subject) query["subject"] = subject;
+      const weakest = await Mastery.findOne(query).sort({ score: 1 }).lean();
+      if (!weakest) {
+        return c.json({ error: "No mastery data found. Upload study materials first." }, 404);
+      }
+      targetConcept = weakest.concept;
+      masteryBefore = weakest.score;
+    }
+
+    const embedder = getQueryEmbeddingProvider({ ...user.providerConfig, userId: user.githubId });
+    let chunks: RetrievedChunk[];
+    try {
+      const result = await retrieve(targetConcept, user.githubId, embedder, fileName);
+      chunks = result.chunks;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return c.json({ error: `Retrieve failed: ${msg}` }, 503);
+    }
+
+    if (chunks.length === 0) {
+      return c.json({ error: `No content found for concept: "${targetConcept}"` }, 404);
+    }
+
+    return c.json({
+      concept: targetConcept,
+      masteryBefore,
+      difficulty: getDifficulty(masteryBefore),
+      chunks,
+      sources: chunks.slice(0, 3).map((ch) => ({
+        fileName: ch.metadata?.fileName ?? "",
+        chunkIndex: ch.metadata?.chunkIndex ?? 0,
+        page: ch.metadata?.page,
+      })),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return c.json({ error: `Internal server error: ${msg}` }, 500);
+  }
+});
+
+// ── POST /quiz/answer-update ──────────────────────────────────────────────────
+// Codexa approach: client evaluated answer with local LLM, now tell backend
+// the score to update the mastery doc. No LLM used on backend here.
+
+quizRoutes.post("/answer-update", async (c) => {
+  const user = c.var.user;
+  try {
+    const body = await c.req.json();
+    const { concept, masteryBefore, score } = body;
+
+    const newScore = calcNewMasteryScore(masteryBefore, score);
+
+    await Mastery.updateOne(
+      { userId: user.githubId, concept },
+      {
+        $set: { score: newScore, lastTested: new Date() },
+        $inc: { attemptCount: 1, correctCount: score > 0.6 ? 1 : 0 },
+      },
+      { upsert: true }
+    );
+
+    return c.json({
+      masteryAfter: newScore,
+      delta: Number((newScore - masteryBefore).toFixed(4)),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return c.json({ error: `Internal error: ${msg}` }, 500);
+  }
+});
+
 // ── POST /quiz/answer ─────────────────────────────────────────────────────────
 
 quizRoutes.post("/answer", async (c) => {
