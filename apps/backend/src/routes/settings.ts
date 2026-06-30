@@ -123,9 +123,37 @@ settingsRoutes.delete("/api-key", async (c) => {
 
 settingsRoutes.get("/test", async (c) => {
   const user = c.var.user;
+  const { providerConfig } = user;
+
+  // Ollama with a localhost URL is only accessible on the user's machine — not
+  // from Vercel's cloud servers. Short-circuit immediately with a clear message.
+  // If the user has set a public tunnel URL (ngrok etc.), fall through to the
+  // real test so we can verify connectivity.
+  const ollamaUrl = providerConfig.ollamaUrl ?? "http://localhost:11434";
+  const isLocalOllama =
+    providerConfig.provider === "ollama" &&
+    (ollamaUrl.includes("localhost") ||
+      ollamaUrl.includes("127.0.0.1") ||
+      ollamaUrl.includes("::1"));
+
+  if (isLocalOllama) {
+    return c.json(
+      {
+        ok: false,
+        latencyMs: 0,
+        model: providerConfig.model,
+        error:
+          "Ollama URL is set to localhost — not reachable from Vercel. " +
+          "Run ngrok in a terminal (ngrok http 11434), copy the HTTPS URL, " +
+          "paste it in Settings → Ollama Server URL, and save.",
+        hint: "local_only",
+      },
+      200 // 200, not 503 — expected behaviour, not a server error
+    );
+  }
 
   const result = await testProvider({
-    ...user.providerConfig,
+    ...providerConfig,
     userId: user.githubId,
   });
 

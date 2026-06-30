@@ -33,10 +33,16 @@ export default function QuizPage() {
   const { files } = useFiles();
   const { settings } = useSettings();
 
-  // Ollama is only available locally — on Vercel it will always 503.
-  // Show a warning and block quiz start when ollama is selected.
+  // Ollama with localhost URL = not reachable from Vercel
+  // Ollama with a public tunnel URL (ngrok) = reachable and usable
   const isOllamaProvider = settings?.provider === "ollama";
-  const providerReady = !isOllamaProvider;
+  const ollamaUrl = settings?.ollamaUrl ?? "http://localhost:11434";
+  const ollamaIsLocalhost = isOllamaProvider && (
+    ollamaUrl.includes("localhost") ||
+    ollamaUrl.includes("127.0.0.1")
+  );
+  // Block quiz start only when Ollama URL is localhost (unreachable from Vercel)
+  const providerReady = !ollamaIsLocalhost;
 
   const fetchQuestion = async () => {
     setPhase("loading-q");
@@ -104,20 +110,21 @@ export default function QuizPage() {
               </div>
               <h2 className="text-base font-bold mb-2 tracking-tight text-text-primary">Ready to be tested?</h2>
 
-              {/* ── Provider warning ───────────────────────────────────────── */}
-              {isOllamaProvider && (
+              {/* ── Provider warning (Ollama localhost) ─────────────────────── */}
+              {ollamaIsLocalhost && (
                 <div className="max-w-xs mx-auto mb-6 text-left bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex gap-2.5">
                   <AlertTriangle size={14} className="text-amber-400 mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-xs font-semibold text-amber-300 mb-0.5">LLM provider not configured</p>
+                    <p className="text-xs font-semibold text-amber-300 mb-0.5">Ollama needs a tunnel URL</p>
                     <p className="text-[11px] text-amber-200/80 leading-relaxed">
-                      Ollama only works locally. In production, switch to OpenAI or Anthropic.
+                      Your Ollama URL is <code className="bg-amber-900/30 px-1 rounded text-[10px]">localhost</code> — not reachable from Vercel.
+                      Run <code className="bg-amber-900/30 px-1 rounded text-[10px]">ngrok http 11434</code> and paste the HTTPS URL in Settings.
                     </p>
                     <Link
                       href="/settings"
                       className="inline-flex items-center gap-1 mt-1.5 text-[11px] text-amber-300 hover:text-amber-100 underline underline-offset-2 transition-colors"
                     >
-                      <Settings size={11} /> Go to Settings
+                      <Settings size={11} /> Configure in Settings
                     </Link>
                   </div>
                 </div>
@@ -146,7 +153,7 @@ export default function QuizPage() {
                 onClick={fetchQuestion} 
                 disabled={!selectedFile || files.length === 0 || !providerReady}
                 className="btn-primary flex items-center gap-2 mx-auto disabled:opacity-50"
-                title={isOllamaProvider ? "Configure an LLM provider in Settings first" : undefined}
+                title={ollamaIsLocalhost ? "Set ngrok tunnel URL in Settings → Ollama Server URL" : undefined}
               >
                 Start Quiz <Zap size={14} />
               </button>

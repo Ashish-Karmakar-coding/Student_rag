@@ -175,6 +175,7 @@ export function testProvider(): Promise<{
   latencyMs: number;
   model: string;
   error?: string;
+  hint?: string;
 }> {
   return apiFetch("/settings/test");
 }
