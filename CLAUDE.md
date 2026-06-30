@@ -11,8 +11,9 @@ StudyTutor is a full-stack TypeScript application that acts as an adaptive AI tu
 - **Backend:** Hono.js (standalone API), LangGraph.js, Mongoose, Zod
 - **Deployment:** Two separate Vercel projects (frontend + backend)
 - **Databases:** MongoDB Atlas (state, jobs, mastery), Pinecone (vector DB)
-- **AI/LLM:** Local (Ollama - dev only) or Cloud (OpenAI, Anthropic). Embeddings via `nomic-embed-text` or `text-embedding-3-small`.
-
+- **AI/LLM (Hybrid Architecture):** 
+  - **Text Generation (Chat/Quiz):** Can be powered by a local Ollama model directly from the browser, bypassing the backend to allow local inference even in production. Cloud providers (OpenAI, Anthropic) are also supported.
+  - **Embeddings (Ingestion):** Must be performed by a Cloud provider (Pinecone Inference or OpenAI) when deployed to Vercel, because the Vercel backend cannot reach your local machine to chunk and embed PDFs.
 ## 🏗 Architecture & Project Structure
 The project is a monorepo managed with `pnpm` workspaces:
 
