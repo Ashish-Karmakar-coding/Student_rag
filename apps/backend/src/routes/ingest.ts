@@ -13,7 +13,7 @@ import { authMiddleware } from "../auth/middleware.js";
 import { IngestJob } from "../models/IngestJob.js";
 import { User } from "../models/User.js";
 import { Mastery } from "../models/Mastery.js";
-import { launchIngestion, type UploadedFile } from "../ingestion/pipeline.js";
+import { runIngestion, type UploadedFile } from "../ingestion/pipeline.js";
 import { deleteFileVectors } from "../ingestion/embedder.js";
 import {
   ALLOWED_EXTENSIONS,
@@ -93,28 +93,34 @@ ingestRoutes.post("/upload", async (c) => {
   await IngestJob.create({
     jobId,
     userId: user.githubId,
-    status: "queued",
+    status: "processing",
     progress: 0,
     completedAt: null,
     files: uploadedFiles.map((f) => ({
       fileName: f.fileName,
       sizeBytes: f.sizeBytes,
-      status: "queued",
+      status: "processing",
       conceptsFound: [],
     })),
   });
 
-  // Launch background ingestion (non-blocking)
-  launchIngestion(jobId, uploadedFiles, user);
-
-  return c.json(
-    {
+  // Run ingestion synchronously on Vercel so the serverless function doesn't freeze
+  try {
+    await runIngestion(jobId, uploadedFiles, user);
+    
+    // Fetch final status
+    const finalJob = await IngestJob.findOne({ jobId }).lean();
+    return c.json({
       jobId,
       fileCount: uploadedFiles.length,
       skipped: validationErrors,
-    },
-    202 // Accepted
-  );
+      status: finalJob?.status || "done"
+    }, 200);
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error("[ingest] Sync ingestion failed:", errMsg);
+    return c.json({ error: "Ingestion failed", details: errMsg }, 500);
+  }
 });
 
 // ── GET /files ─────────────────────────────────────────────────────────────────
